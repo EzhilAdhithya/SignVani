@@ -1,207 +1,274 @@
-# Accessible AI
+# SignVani
 
-### Demo
+**Speech-to-Indian Sign Language Translator for Raspberry Pi 4**
 
-<https://github.com/user-attachments/assets/e7f063b4-c6a2-4e13-977f-57023c69a459>
-
-# Sign Language Extension Landing Page
-
-This is the landing page and web application for the Sign Language Extension project, which converts digital content into sign language videos.
+SignVani is an offline, low-latency system that translates spoken English into Indian Sign Language (ISL) using HamNoSys notation and SiGML output for 3D avatar rendering.
 
 ## Features
 
-- User authentication with Supabase
-- Profile management
-- Content conversion to sign language
-- History tracking
-- Saved translations
-- Dark mode support
-- Responsive design
+- **Fully Offline**: No cloud APIs required - runs entirely on Raspberry Pi 4
+- **Low Latency**: Target <1s end-to-end processing time
+- **Resource Efficient**: Optimized for ARM Cortex-A72 with MicroPython-style efficiency
+- **Real-time Processing**: Audio capture → ASR → NLP → Database → SiGML pipeline
 
-## 🔎Project Overview
+## Architecture
 
-The Digital Content to Sign Language Converter is a comprehensive tool that converts various forms of Digital media (YouTube videos, local videos, audio files, and text) into sign language videos. This project leverages several libraries and APIs to process and translate spoken or written content into Indian Sign Language (ISL) syntax, creating videos that can aid in communication for the deaf and hard-of-hearing community.
+```
+Audio Input → Noise Reduction → Vosk ASR → NLP Processing → SQLite Lookup → SiGML Output
+   (PyAudio)    (Spectral Sub)   (Offline)  (SVO→SOV)      (Gloss→HamNoSys)
+```
 
-## 💡Project Objective
+## Hardware Requirements
 
-The primary objective of this project is to bridge the communication gap for individuals who rely on sign language. By converting various media formats into sign language videos, we aim to provide an accessible and efficient means of understanding content that is traditionally available only in spoken or written form.
+- **Raspberry Pi 4 Model B** (4GB RAM recommended)
+- **Microphone**: USB or 3.5mm audio input
+- **Operating System**: Raspberry Pi OS (64-bit)
 
-![accessible_AI](https://github.com/user-attachments/assets/074d87b8-044b-4f54-8ba3-9ba01d48b9e3)
+## Software Stack
 
-## 📚Features
+- **ASR**: Vosk (offline speech recognition)
+- **Audio Processing**: PyAudio + scipy (spectral subtraction)
+- **NLP**: NLTK (lightweight tokenization and lemmatization)
+- **Database**: SQLite (English gloss → HamNoSys mapping)
+- **Output**: SiGML XML generation
 
-- *YouTube Video Processing:* Download and convert YouTube videos into sign language videos.
-- *Local File Processing:* Convert local video or audio files into sign language videos.
-- *Text Input Processing:* Translate text into sign language videos.
-- *Sign Language Translation:* Convert English sentences into ISL syntax.
-- *Video Compilation:* Combine video clips and GIFs to form coherent sign language videos.
-- *PINATA* A DECENTRALISED CLOUD STORAGE, COMES WITH HASHING FOR EVERY FILE, SO ESTABLISHING SECURED CONNECTION
+## Installation
 
-## Technology/Libraries Used 🐍
+### Prerequisites
 
-- *Python:* Core programming language used for development.
-- *Next Js* Framework for creating the web interface.
-- *Google Cloud Speech-to-Text API:* For transcribing audio to text.
-- *yt-dlp:* For downloading YouTube videos.
-- *MoviePy:* For video processing and editing.
-- *nltk:* For natural language processing tasks.
-- *num2words:* For converting numbers to words.
-- *pytube:* For downloading YouTube videos.
-- *pandas:* For data manipulation and handling.
-- **Stanford Parser:** Used for syntactic parsing of text, which involves analyzing the grammatical structure of sentences.
-- **stanford-parser-3.9.1-models:** This package contains pre-trained models that the parser uses to analyze text.
-- **HAMNOSYS** and **SIGML** - for creating 3D avatars
-- **Unsloth** - for finetuning gemini models
-- **WEBGL** - 3D renderer avatar
+On **Windows** (for development):
+```bash
+# Install PyAudio using pipwin (easier on Windows)
+pip install pipwin
+pipwin install pyaudio
 
-## Methodology 📝
+# Install other dependencies
+pip install -r requirements.txt
+```
 
-### YouTube Video Processing 📽
+On **Linux/Raspberry Pi OS**:
+```bash
+# Install system dependencies
+sudo apt-get update
+sudo apt-get install -y portaudio19-dev python3-dev libasound2-dev
 
-1. *Download Audio:* Using yt-dlp, download the audio from the provided YouTube URL.
-2. *Convert to Mono:* Ensure the audio is in mono format using pydub.
-3. *Transcribe Audio:* Use Google Cloud Speech-to-Text API to transcribe the audio into text.
-4. *Translate to ISL:* Convert the transcribed text to ISL syntax using nltk and Stanford Parser.
-5. *Compile Video:* Use MoviePy to compile the translated text into a sign language video.
+# Install Python dependencies
+pip3 install -r requirements.txt
+```
 
-### Local File Processing 🎤
+### Download Models
 
-1. *Extract Audio:* Extract audio from the uploaded video or audio file using ffmpeg.
-2. *Transcribe Audio:* Transcribe the extracted audio using Google Cloud Speech-to-Text API.
-3. *Translate to ISL:* Convert the transcribed text to ISL syntax.
-4. *Compile Video:* Compile the translated text into a sign language video.
+```bash
+# Auto-download Vosk model and NLTK data
+python scripts/setup_models.py
+```
 
-### Text Input Processing ✏
+This will download:
+- **Vosk model**: `vosk-model-small-en-in-0.4` (~40MB) - Indian English ASR
+- **NLTK data**: punkt, wordnet, stopwords (~24MB total)
 
-1. *Translate to ISL:* Directly convert the input text to ISL syntax.
-2. *Compile Video:* Compile the translated text into a sign language video using appropriate video clips and GIFs.
+### Install SignVani
 
-## Flow Diagram
+```bash
+# Development mode (editable install)
+pip install -e .
 
-![accessible_AI](https://github.com/user-attachments/assets/074d87b8-044b-4f54-8ba3-9ba01d48b9e3)
+# Or production mode
+pip install .
+```
 
-## How We Built It 🛠👷‍♂
+## Usage
 
-1. *Setting Up Environment:*
-   - Install necessary libraries and tools.
-   - Set up Google Cloud credentials and APIs.
+### Run SignVani
 
-2. *Developing the Backend:*
-   - Implement the VideoProcessor class to handle downloading, audio processing, and transcription.
-   - Develop functions for text processing and translation to ISL.
+```bash
+# Using Python module
+python main.py
 
-3. *Creating the Frontend:*
-   - Use Streamlit to create an intuitive web interface for users to input YouTube URLs, upload files, or enter text.
-   - Integrate backend processing with the frontend to provide real-time feedback and results.
+# Or if installed as package
+signvani
+```
 
-4. *Testing and Optimization:*
-   - Test the application with various inputs to ensure accuracy and robustness.
-   - Optimize the processing pipeline for efficiency and speed.
+### Configuration
 
-<br>
-<br>
-<br>
+Edit `config/settings.py` to customize:
+- Audio parameters (sample rate, buffer size)
+- Vosk model path
+- NLP settings (tokenization, grammar transformation)
+- Database settings (cache size, connection pool)
+- Pipeline settings (queue sizes, timeouts)
 
-# Setting Up Google Cloud Credentials and APIs for Speech-to-Text
+## Project Structure
 
-## Prerequisites
+```
+sign-vani/
+├── config/              # Configuration settings
+├── src/
+│   ├── audio/          # Audio capture and preprocessing
+│   ├── asr/            # Vosk ASR engine
+│   ├── nlp/            # NLP and grammar transformation
+│   ├── database/       # SQLite database layer
+│   ├── sigml/          # SiGML generation
+│   ├── utils/          # Utility functions and exceptions
+│   └── pipeline/       # Pipeline orchestration
+├── models/
+│   ├── vosk/           # Vosk ASR models
+│   └── nltk_data/      # NLTK corpus data
+├── data/               # SQLite database
+├── tests/              # Unit, integration, and performance tests
+├── scripts/            # Setup and deployment scripts
+└── assets/             # Test audio files
+```
 
-1. *Google Cloud Account*: Ensure you have a Google Cloud account. If not, you can sign up [here](https://cloud.google.com/).
+## Development
 
-2. *Google Cloud SDK*: Install the Google Cloud SDK by following the instructions [here](https://cloud.google.com/sdk/docs/install).
+### Running Tests
 
-## Step 1: Create a New Project
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Click on the project drop-down menu at the top of the page.
-3. Click *New Project*.
-4. Enter a name for your project.
-5. Click *Create*.
+# Run all tests
+pytest
 
-## Step 2: Enable APIs
+# Run with coverage
+pytest --cov=src
 
-1. Go to the [API Library](https://console.cloud.google.com/apis/library).
-2. Search for *"Cloud Speech-to-Text API"*.
-3. Click on the *"Cloud Speech-to-Text API"* result.
-4. Click *Enable*.
+# Run specific test suite
+pytest tests/unit/
+pytest tests/integration/
+pytest tests/performance/
+```
 
-## Step 3: Set Up Authentication
+### Code Quality
 
-1. Go to the [Credentials](https://console.cloud.google.com/apis/credentials) page in the Cloud Console.
-2. Click *Create credentials* and select *Service account*.
-3. Enter a name for your service account and click *Create and continue*.
-4. Assign the role *"Project" > "Editor"* and click *Continue*.
-5. Click *Done*.
-6. In the service account list, click on the newly created service account.
-7. Click *Keys* and then *Add key* > *Create new key*.
-8. Select *JSON* and click *Create*. Save the downloaded JSON file securely.
+```bash
+# Format code
+black src/ tests/
 
-## Step 4: Set Up Google Cloud SDK
+# Lint code
+flake8 src/ tests/
 
-1. Open your terminal.
-2. Initialize the Google Cloud SDK by running:
-    sh
-    gcloud init
+# Type checking
+mypy src/
+```
 
-3. Authenticate with your Google account and select your newly created project.
-4. Set the environment variable to the path of your service account key file:
-    sh
-    export GOOGLE_APPLICATION_CREDENTIALS="[PATH_TO_YOUR_SERVICE_ACCOUNT_KEY_JSON]"
+## Performance Targets
 
-    Replace [PATH_TO_YOUR_SERVICE_ACCOUNT_KEY_JSON] with the actual file path.
-<br>
+- **End-to-end latency**: <1 second
+- **Memory footprint**: <500MB (excluding OS)
+- **CPU usage**: <80% on Raspberry Pi 4
+- **ASR accuracy**: >80% for Indian English
 
-## Step-5: Setting Up a Cloud Storage Bucket
+## Architecture Details
 
-1. Open the [Google Cloud Console](https://console.cloud.google.com/).
-2. Navigate to *Storage* > *Browser*.
-3. Click *Create bucket*.
-4. Enter a unique name for your bucket.
-5. Select a *Location type* and *Location* for your bucket.
-6. Choose a *Default storage class*.
-7. Configure *Access control*:
-    - For simplicity, you can choose *Uniform*.
-8. Click *Create*.
-<br>
+### Thread Pipeline
 
-## Step 6: Update the Path
+```
+Main Thread (Control)
+├─► Audio Thread: PyAudio → VAD → Noise Filter → Queue[AudioChunk]
+├─► ASR Thread: Vosk Processing → Queue[TranscriptEvent]
+├─► NLP Thread: Tokenize → SVO→SOV Transform → Queue[GlossPhrase]
+└─► DB Thread: SQLite Lookup → SiGML Generation
+```
 
-1. Update the paths of JSON file which you've downloaded in main code
-2. Update the name of bucket correctly in main code
+### Grammar Transformation
 
-<br>
-<br>
-<br>
+SignVani transforms English Subject-Verb-Object (SVO) word order to Indian Sign Language's Subject-Object-Verb (SOV) structure:
 
-# How to Run 💻
+- **Input**: "I eat apple"
+- **Output**: "I apple eat"
 
-1. **Download the stanford-parser.jar and stanford-parser-3.9.1-models.jar from the following link:**
+### Database Schema
 
-   <http://nlp.stanford.edu/software/stanford-parser-4.2.1.zip>
+SQLite database stores English gloss to HamNoSys notation mappings:
 
-   - Update the path location in textToISL.py
+- **english_gloss**: Uppercase sign name (e.g., "HELLO")
+- **hamnosys_string**: HamNoSys notation for the sign
+- **frequency**: Usage count for LRU caching
+- **Full-text search**: FTS5 for fuzzy matching unknown words
 
-2. **Download the ffmpeg.exe for audio processing from the following link:**
+## Deployment to Raspberry Pi 4
 
-   <https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z>
+```bash
+# Transfer project to RPi4
+scp -r sign-vani/ pi@raspberrypi:~/
 
-   - Update the path location in VideoProessor.py
+# SSH into RPi4
+ssh pi@raspberrypi
 
-3. **Download the latest version of JDK for creating the JAVA Environment to access the two .jar files from the below link:**
+# Run deployment script
+cd sign-vani
+bash scripts/deploy_rpi.sh
+```
 
-   <https://download.oracle.com/java/22/latest/jdk-22_windows-x64_bin.zip>
+The deployment script will:
+1. Install system dependencies
+2. Install Python packages
+3. Download models
+4. Initialize database
+5. Create systemd service for auto-start
 
-   - Update the Java.exe location in textToISL.py
+## Optimization Philosophy
 
-4. *Clone the Repository:*
+SignVani follows **MicroPython-style efficiency** principles:
 
-   git clone <https://github.com/Twinn-github09/Web3conf-accessible-AI>
-   cd Web3conf-accessible-AI
+- **Memory**: Use `__slots__` for data classes, `float32` instead of `float64`
+- **Generators**: Prefer streaming over loading full data into memory
+- **Threading**: Non-blocking pipeline with queue-based communication
+- **Caching**: LRU cache for frequently accessed data
+- **Database**: Optimized indexes and query patterns for embedded systems
 
-5. *Install the required Libraries:*
+## Roadmap
 
-   pip install -r requirements.txt
+### Phase 1 ✅ (Current)
+- [x] Project scaffolding
+- [ ] Audio subsystem (PyAudio + noise reduction)
+- [ ] ASR integration (Vosk)
+- [ ] Database layer (SQLite)
 
-6. *Run the app.py file in the terminal:*
+### Phase 2
+- [ ] NLP engine (SVO→SOV transformation)
+- [ ] SiGML generation
+- [ ] Pipeline integration
 
-   npm run dev
+### Phase 3
+- [ ] RPi4 deployment and optimization
+- [ ] Performance profiling and tuning
+- [ ] Load testing
+
+### Future Enhancements
+- [ ] Additional ISL grammar rules (tense, classifiers, spatial agreement)
+- [ ] Real HamNoSys data integration
+- [ ] Expanded vocabulary (100+ signs)
+- [ ] Fingerspelling for unknown words
+- [ ] Avatar player integration
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- **Vosk**: Open-source speech recognition toolkit
+- **NLTK**: Natural Language Toolkit
+- **HamNoSys**: Hamburg Notation System for sign languages
+- **SiGML**: Signing Gesture Markup Language
+
+## Contact
+
+For questions or issues, please open an issue on GitHub.
+
+---
+
+**Built with ❤️ for the deaf community**

@@ -1,5 +1,24 @@
-flask==2.0.1
-werkzeug==2.0.2
-youtube-transcript-api==0.4.4
-flask-cors==3.0.10
-gunicorn==20.1.0 
+# SignVani Production Dependencies
+# Compatible with Python 3.12+
+
+# Speech Recognition (Offline)
+vosk==0.3.45
+
+# Audio Processing
+PyAudio==0.2.14
+
+# Numerical Computing (wheels available for Python 3.12)
+numpy>=1.26.0
+scipy>=1.11.0
+
+# Natural Language Processing (Lightweight)
+nltk>=3.8.1
+
+# SQLite is built into Python standard library (no install needed)
+
+# Note: PyAudio on Windows requires pre-built wheels
+# Install using: pip install pipwin && pipwin install pyaudio
+#
+# On Linux/RPi4, install system dependencies first:
+# sudo apt-get install portaudio19-dev python3-dev libasound2-dev
+# then: pip install -r requirements.txt
