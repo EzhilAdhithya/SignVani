@@ -45,7 +45,7 @@ class SiGMLGenerator:
             SiGMLOutput object containing the XML string.
         """
         start_time = time.time()
-        
+
         # Create root element
         root = ET.Element('sigml')
 
@@ -54,7 +54,7 @@ class SiGMLGenerator:
         for gloss in gloss_phrase.glosses:
             # Retrieve HamNoSys for the gloss
             hamnosys = self.retriever.get_hamnosys(gloss)
-            
+
             if hamnosys:
                 # Create sign element
                 sign_elem = ET.SubElement(root, 'hns_sign')
@@ -63,20 +63,22 @@ class SiGMLGenerator:
                 # Add manual component (the hand signs)
                 manual_elem = ET.SubElement(sign_elem, 'hamnosys_manual')
                 manual_elem.text = hamnosys
-                
+
                 # Non-manual component (facial expressions) - placeholder for now
                 # nonmanual_elem = ET.SubElement(sign_elem, 'hamnosys_nonmanual')
-                
+
                 valid_glosses.append(gloss)
             else:
-                logger.warning(f"No HamNoSys found for gloss '{gloss}' during SiGML generation.")
+                logger.warning(
+                    f"No HamNoSys found for gloss '{gloss}' during SiGML generation.")
 
         # Convert to string
         # encoding='unicode' returns a string, not bytes
         xml_str = ET.tostring(root, encoding='unicode', method='xml')
 
         gen_time = (time.time() - start_time) * 1000
-        logger.debug(f"SiGML generation took {gen_time:.2f}ms for {len(valid_glosses)} signs")
+        logger.debug(
+            f"SiGML generation took {gen_time:.2f}ms for {len(valid_glosses)} signs")
 
         return SiGMLOutput(
             sigml_xml=xml_str,

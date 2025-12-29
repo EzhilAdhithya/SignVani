@@ -29,7 +29,8 @@ class AudioChunk:
             timestamp: Unix timestamp (defaults to current time)
         """
         # Force float32 for memory efficiency
-        self.data = data.astype(np.float32) if data.dtype != np.float32 else data
+        self.data = data.astype(
+            np.float32) if data.dtype != np.float32 else data
         self.timestamp = timestamp if timestamp is not None else time.time()
         self.sample_rate = sample_rate
 
@@ -199,6 +200,7 @@ def print_memory_savings():
 
     class SlotsClass:
         __slots__ = ('data', 'timestamp', 'sample_rate')
+
         def __init__(self):
             self.data = None
             self.timestamp = None
@@ -213,7 +215,8 @@ def print_memory_savings():
     print("Memory Footprint Comparison (empty instances):")
     print(f"  Regular class: {regular_size} bytes")
     print(f"  __slots__ class: {slots_size} bytes")
-    print(f"  Savings: {regular_size - slots_size} bytes ({(1 - slots_size/regular_size)*100:.1f}% reduction)")
+    print(
+        f"  Savings: {regular_size - slots_size} bytes ({(1 - slots_size/regular_size)*100:.1f}% reduction)")
 
 
 if __name__ == '__main__':

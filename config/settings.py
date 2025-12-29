@@ -25,7 +25,8 @@ class AudioConfig:
 
     # Noise reduction settings
     NOISE_REDUCTION_ENABLED: bool = True
-    FFT_SIZE: int = 1024              # FFT size for spectral subtraction (tunable: 512/1024/2048)
+    # FFT size for spectral subtraction (tunable: 512/1024/2048)
+    FFT_SIZE: int = 1024
     ALPHA: float = 2.0                # Over-subtraction factor
     BETA: float = 0.01                # Spectral floor
 
@@ -45,7 +46,8 @@ class VoskConfig:
 
     # Vosk optimization settings (memory and performance)
     MAX_ALTERNATIVES: int = 1         # Reduce to 1 for memory efficiency
-    WORDS: bool = False               # Disable word-level timing (saves memory)
+    # Disable word-level timing (saves memory)
+    WORDS: bool = False
 
     # Model download URL
     MODEL_URL: str = f'https://alphacephei.com/vosk/models/{MODEL_NAME}.zip'
@@ -59,7 +61,8 @@ class NLPConfig:
     NLTK_DATA_PATH: str = str(PROJECT_ROOT / 'models' / 'nltk_data')
 
     # Required NLTK resources
-    NLTK_RESOURCES: tuple = ('punkt', 'wordnet', 'stopwords', 'averaged_perceptron_tagger')
+    NLTK_RESOURCES: tuple = (
+        'punkt', 'wordnet', 'stopwords', 'averaged_perceptron_tagger')
 
     # Processing options
     LEMMATIZATION_ENABLED: bool = True

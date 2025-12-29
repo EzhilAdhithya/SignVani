@@ -50,7 +50,8 @@ class GlossMapper:
         processed_text: ProcessedText = self.text_processor.process(text)
 
         # 2. Grammar Transformation
-        raw_glosses: List[str] = self.grammar_transformer.transform(processed_text)
+        raw_glosses: List[str] = self.grammar_transformer.transform(
+            processed_text)
 
         # 3. Gloss Validation & Mapping
         final_glosses: List[str] = []
@@ -63,12 +64,14 @@ class GlossMapper:
                 final_glosses.append(gloss)
             else:
                 # Fallback: Fingerspelling
-                logger.info(f"Gloss '{gloss}' not found. Falling back to fingerspelling.")
+                logger.info(
+                    f"Gloss '{gloss}' not found. Falling back to fingerspelling.")
                 fingerspelled = self._fingerspell(gloss)
                 final_glosses.extend(fingerspelled)
 
         total_time = (time.time() - start_time) * 1000
-        logger.info(f"NLP Pipeline: '{text}' -> {final_glosses} ({total_time:.2f}ms)")
+        logger.info(
+            f"NLP Pipeline: '{text}' -> {final_glosses} ({total_time:.2f}ms)")
 
         return GlossPhrase(
             glosses=final_glosses,
@@ -78,10 +81,10 @@ class GlossMapper:
     def _fingerspell(self, word: str) -> List[str]:
         """
         Convert a word to a list of character glosses.
-        
+
         Args:
             word: Word to fingerspell (e.g., "RAM")
-            
+
         Returns:
             List of character glosses (e.g., ["R", "A", "M"])
         """

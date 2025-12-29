@@ -21,7 +21,7 @@ class GrammarTransformer:
 
     # Words to ignore in ISL (articles, auxiliary verbs)
     STOPWORDS = {
-        'a', 'an', 'the', 
+        'a', 'an', 'the',
         'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being',
         'to', 'of', 'for', 'with', 'by', 'at', 'in', 'on'
     }
@@ -56,7 +56,7 @@ class GrammarTransformer:
             List of ISL gloss strings.
         """
         start_time = time.time()
-        
+
         tokens = processed_text.tokens
         tags = processed_text.tagged_tokens
 
@@ -70,12 +70,12 @@ class GrammarTransformer:
         time_markers = []
         question_markers = []
         negations = []
-        adjectives = [] # To keep with nouns if possible, but for now simple list
+        adjectives = []  # To keep with nouns if possible, but for now simple list
         others = []
 
         # Simple state machine
         # 0: Pre-verb (Subject), 1: Verb found, 2: Post-verb (Object)
-        state = 0 
+        state = 0
 
         for word, tag in tags:
             word_lower = word.lower()
@@ -88,7 +88,7 @@ class GrammarTransformer:
             if word_lower in self.TIME_WORDS:
                 time_markers.append(word)
                 continue
-            
+
             if word_lower in self.QUESTION_WORDS:
                 question_markers.append(word)
                 continue
@@ -104,7 +104,7 @@ class GrammarTransformer:
 
             if is_verb:
                 verbs.append(word)
-                state = 1 # Verb found, switch to Object territory
+                state = 1  # Verb found, switch to Object territory
             elif state == 0:
                 # Before verb -> Subject
                 subjects.append(word)
@@ -114,9 +114,9 @@ class GrammarTransformer:
 
         # 2. Construct ISL Sentence Structure
         # Order: Time + Subject + Object + Verb + Negation + Question
-        
+
         isl_sequence = []
-        
+
         isl_sequence.extend(time_markers)
         isl_sequence.extend(subjects)
         isl_sequence.extend(objects)
@@ -128,6 +128,7 @@ class GrammarTransformer:
         glosses = [word.upper() for word in isl_sequence]
 
         transform_time = (time.time() - start_time) * 1000
-        logger.debug(f"Grammar transformation took {transform_time:.2f}ms: {glosses}")
+        logger.debug(
+            f"Grammar transformation took {transform_time:.2f}ms: {glosses}")
 
         return glosses

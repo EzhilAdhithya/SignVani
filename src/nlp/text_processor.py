@@ -28,7 +28,7 @@ class TextProcessor:
         """Initialize text processor and load NLTK resources."""
         self._ensure_nltk_resources()
         self.lemmatizer = WordNetLemmatizer() if NLPConfig.LEMMATIZATION_ENABLED else None
-        
+
         # Pre-compile punctuation map for faster removal
         self.punctuation_map = str.maketrans('', '', string.punctuation)
 
@@ -44,7 +44,8 @@ class TextProcessor:
                     try:
                         nltk.data.find(f'corpora/{resource}')
                     except LookupError:
-                        logger.warning(f"NLTK resource '{resource}' not found. Attempting download...")
+                        logger.warning(
+                            f"NLTK resource '{resource}' not found. Attempting download...")
                         nltk.download(resource, quiet=True)
         except Exception as e:
             logger.error(f"Failed to verify NLTK resources: {e}")
@@ -86,7 +87,7 @@ class TextProcessor:
             token = token.translate(self.punctuation_map)
             if token and len(token) >= NLPConfig.MIN_TOKEN_LENGTH:
                 clean_tokens.append(token)
-        
+
         tokens = clean_tokens
 
         # 4. POS Tagging
