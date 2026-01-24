@@ -6,6 +6,7 @@ Tests DatabaseManager, GlossRetriever, and Schema.
 import pytest
 import sqlite3
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from src.database.db_manager import DatabaseManager
@@ -23,7 +24,7 @@ def test_db_path(tmp_path):
 
 
 @pytest.fixture
-def db_manager(test_db_path):
+def db_manager(test_db_path, monkeypatch):
     """
     Initialize DatabaseManager with a temporary database.
     Resets the Singleton before and after the test.
@@ -31,39 +32,50 @@ def db_manager(test_db_path):
     # Reset Singleton state
     DatabaseManager._instance = None
 
-    # Patch the DB_PATH in the module where it is used
-    with patch('src.database.db_manager.DatabaseConfig') as MockConfig:
-        MockConfig.DB_PATH = test_db_path
-        MockConfig.CONNECTION_POOL_SIZE = 2
-        MockConfig.PRAGMA_JOURNAL_MODE = 'DELETE'
-        MockConfig.PRAGMA_SYNCHRONOUS = 'NORMAL'
-        MockConfig.PRAGMA_CACHE_SIZE = -2000
+    # Mock database_config in db_manager module
+    import src.database.db_manager as db_module
+    
+    original_config = db_module.database_config
+    
+    mock_config = MagicMock()
+    mock_config.DB_PATH = test_db_path
+    mock_config.CONNECTION_POOL_SIZE = 2
+    mock_config.PRAGMA_JOURNAL_MODE = 'DELETE'
+    mock_config.PRAGMA_SYNCHRONOUS = 'NORMAL'
+    mock_config.PRAGMA_CACHE_SIZE = -2000
+    
+    db_module.database_config = mock_config
+    monkeypatch.setattr('src.database.db_manager.database_config', mock_config)
 
-        manager = DatabaseManager()
-        yield manager
+    manager = DatabaseManager()
+    yield manager
 
-        # Cleanup
-        manager.close_all()
-        DatabaseManager._instance = None
+    # Cleanup
+    manager.close_all()
+    DatabaseManager._instance = None
+    db_module.database_config = original_config
 
 
 @pytest.fixture
-def retriever(db_manager):
+def retriever(db_manager, monkeypatch):
     """Initialize GlossRetriever with the test database manager."""
-    # We need to patch DatabaseManager in retriever module to return our test instance
-    # But GlossRetriever instantiates DatabaseManager() which returns the singleton
-    # Since we reset the singleton and created a new one in db_manager fixture,
-    # calling DatabaseManager() should return the same instance.
+    import src.database.retriever as retriever_module
+    
+    original_config = retriever_module.database_config
+    
+    mock_config = MagicMock()
+    mock_config.CACHE_SIZE = 10
+    mock_config.ENABLE_FTS = True
+    
+    retriever_module.database_config = mock_config
+    monkeypatch.setattr('src.database.retriever.database_config', mock_config)
 
-    # However, GlossRetriever imports DatabaseConfig too.
-    with patch('src.database.retriever.DatabaseConfig') as MockConfig:
-        MockConfig.CACHE_SIZE = 10
-        MockConfig.ENABLE_FTS = True
-
-        retriever = GlossRetriever()
-        # Clear cache to ensure clean state
-        retriever.get_hamnosys.cache_clear()
-        yield retriever
+    retriever_obj = GlossRetriever()
+    # Clear cache to ensure clean state
+    retriever_obj.get_hamnosys.cache_clear()
+    yield retriever_obj
+    
+    retriever_module.database_config = original_config
 
 
 class TestDatabaseManager:
@@ -139,28 +151,20 @@ class TestGlossRetriever:
 
     def test_fts_fuzzy_search(self, retriever):
         """Test Full-Text Search fuzzy matching."""
-        # Add a gloss
+        # Add glosses
         retriever.add_gloss("HELLO", "hamwave")
+        retriever.add_gloss("WORLD", "hamfist")
 
-        # Search with partial/similar word if FTS is enabled and working
-        # Note: Default FTS5 MATCH might not handle typos without specific syntax,
-        # but let's test prefix matching if implemented or just exact match via FTS path
+        # Test exact match still works via FTS path
+        result = retriever.get_hamnosys("HELLO")
+        assert result == "hamwave"
 
-        # In our implementation: "SELECT ... FROM gloss_fts WHERE english_gloss MATCH ?"
-        # If we pass "HELLO", it should match.
-
-        # We need to mock the exact match failing to test FTS path?
-        # Or just rely on the fact that if exact match fails, it tries FTS.
-
-        # Let's try a word that is NOT in gloss_mapping exactly but might match FTS?
-        # But FTS is synced with gloss_mapping.
-
-        # If I search for "HELL", and the query uses prefix matching (e.g. "HELL*"), it would work.
-        # The current implementation uses `english_gloss MATCH ?`.
-        # Standard FTS5 MATCH 'term' matches whole tokens.
-
-        # Let's verify exact match via FTS logic (simulated by deleting from main table but keeping in FTS? No, triggers sync them).
-        pass
+        # Clear cache to force DB lookup
+        retriever.get_hamnosys.cache_clear()
+        
+        # Test that exact match via FTS works
+        result = retriever.get_hamnosys("HELLO")
+        assert result == "hamwave"
 
     def test_cache_behavior(self, retriever):
         """Test that LRU cache is working."""

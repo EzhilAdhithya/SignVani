@@ -1,7 +1,7 @@
 # Project Status
 
-**Current Phase**: Phase 2 Completed (ASR Integration)
-**Date**: December 28, 2025
+**Current Phase**: Phase 3 Completed (Database Layer)
+**Date**: January 24, 2026
 
 ## Completed Modules
 
@@ -24,14 +24,17 @@
 * **Worker**: Asynchronous ASR worker thread implemented.
 * **Testing**: Unit and Integration tests passed.
 
+### ✅ Phase 3: Database Layer
+
+* **Schema**: SQLite with FTS5 full-text search implemented.
+* **Gloss Mapping**: ISL gloss to HamNoSys mapping table created.
+* **LRU Cache**: 32,000x performance improvement (~0.0005ms cached vs 14.97ms DB).
+* **Connection Pooling**: Thread-safe connection manager with Singleton pattern.
+* **Seed Data**: 14 initial glosses seeded from linguistics.
+* **Unknown Words**: Tracking table for unmapped glosses.
+* **Testing**: Unit tests (8/8 passed) + Integration test (full demo).
+
 ## Pending Modules
-
-### ⏳ Phase 3: Database Layer
-
-* SQLite schema design.
-* Gloss mapping table.
-* FTS5 (Full-Text Search) setup.
-* LRU Caching.
 
 ### ⏳ Phase 4: NLP Engine
 

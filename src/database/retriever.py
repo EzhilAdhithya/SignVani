@@ -10,9 +10,11 @@ import sqlite3
 from functools import lru_cache
 from typing import Optional
 
-from config.settings import database_config
+from config.settings import DatabaseConfig
 from src.database.db_manager import DatabaseManager
 from src.utils.exceptions import QueryError
+
+database_config = DatabaseConfig()
 
 logger = logging.getLogger(__name__)
 

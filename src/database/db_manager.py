@@ -13,8 +13,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-from config.settings import database_config
+from config.settings import DatabaseConfig
 from src.utils.exceptions import ConnectionError, SchemaError, DatabaseError
+
+database_config = DatabaseConfig()
 
 logger = logging.getLogger(__name__)
 

@@ -6,10 +6,12 @@ Tests all Phase 1 components without requiring microphone input.
 
 import numpy as np
 import time
+import sys
 
 print("="* 70)
 print("SignVani - Phase 1: Audio Subsystem Test")
 print("=" * 70)
+print("\n[Note: NLTK may take 30-60 seconds to initialize on first import...]")
 
 # Test 1: AudioChunk Data Class
 print("\n1. Testing AudioChunk...")
