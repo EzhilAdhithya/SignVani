@@ -10,6 +10,7 @@ import numpy as np
 import threading
 import queue
 import time
+import logging
 from typing import Optional, Callable
 
 from config.settings import audio_config
@@ -18,6 +19,8 @@ from src.audio.vad import VoiceActivityDetector
 from src.audio.noise_filter import SpectralSubtractor
 from src.audio.audio_buffer import CircularAudioBuffer
 from src.utils.exceptions import AudioCaptureError, AudioStreamError
+
+logger = logging.getLogger(__name__)
 
 
 class AudioCaptureSystem:
@@ -94,7 +97,8 @@ class AudioCaptureSystem:
 
         try:
             # Convert bytes to numpy array (int16 → float32)
-            audio_data = np.frombuffer(in_data, dtype=np.int16).astype(np.float32)
+            audio_data = np.frombuffer(
+                in_data, dtype=np.int16).astype(np.float32)
 
             # Normalize to [-1.0, 1.0]
             audio_data = audio_data / 32768.0
@@ -129,7 +133,8 @@ class AudioCaptureSystem:
                     chunk_processed = chunk
                 else:
                     # Apply noise filter
-                    chunk_processed = self._noise_filter.filter_chunk(chunk, is_speech=is_speech)
+                    chunk_processed = self._noise_filter.filter_chunk(
+                        chunk, is_speech=is_speech)
             else:
                 chunk_processed = chunk
 
@@ -154,13 +159,12 @@ class AudioCaptureSystem:
                 try:
                     self._callback(chunk_processed, is_speech)
                 except Exception as e:
-                    # Don't let callback errors crash the stream
-                    pass
+                    # Log callback errors but don't crash the stream
+                    logger.warning(f"Error in audio callback: {e}")
 
         except Exception as e:
             self._errors += 1
-            # Log but don't crash
-            # print(f"Error in audio callback: {e}")
+            logger.error(f"Error in audio processing: {e}")
 
         # Continue stream
         return (None, pyaudio.paContinue)
@@ -170,6 +174,10 @@ class AudioCaptureSystem:
         Start audio capture.
 
         Opens PyAudio stream in callback mode for minimal latency.
+
+        Raises:
+            AudioCaptureError: If capture is already running
+            AudioStreamError: If no audio device is available or stream fails
         """
         if self._is_running:
             raise AudioCaptureError("Audio capture already running")
@@ -177,6 +185,29 @@ class AudioCaptureSystem:
         try:
             # Initialize PyAudio
             self._pyaudio = pyaudio.PyAudio()
+
+            # Check for available input devices
+            device_count = self._pyaudio.get_device_count()
+            input_device_found = False
+            available_devices = []
+
+            for i in range(device_count):
+                try:
+                    device_info = self._pyaudio.get_device_info_by_index(i)
+                    if device_info.get('maxInputChannels', 0) > 0:
+                        input_device_found = True
+                        available_devices.append(
+                            f"  [{i}] {device_info.get('name', 'Unknown')}"
+                        )
+                except (IOError, OSError):
+                    continue
+
+            if not input_device_found:
+                self._cleanup()
+                raise AudioStreamError(
+                    "No audio input device found. Please connect a microphone.\n"
+                    "Available audio devices: None"
+                )
 
             # Open stream
             self._stream = self._pyaudio.open(
@@ -193,6 +224,16 @@ class AudioCaptureSystem:
             self._stream.start_stream()
             self._is_running = True
 
+        except AudioStreamError:
+            raise
+        except OSError as e:
+            self._cleanup()
+            device_list = '\n'.join(
+                available_devices) if available_devices else 'None found'
+            raise AudioStreamError(
+                f"Failed to open audio device: {e}\n"
+                f"Available input devices:\n{device_list}"
+            )
         except Exception as e:
             self._cleanup()
             raise AudioStreamError(f"Failed to start audio stream: {e}")
@@ -212,14 +253,16 @@ class AudioCaptureSystem:
                 if self._stream.is_active():
                     self._stream.stop_stream()
                 self._stream.close()
-            except:
+            except (IOError, OSError) as e:
+                # Log but continue cleanup
                 pass
             self._stream = None
 
         if self._pyaudio is not None:
             try:
                 self._pyaudio.terminate()
-            except:
+            except (IOError, OSError) as e:
+                # Log but continue cleanup
                 pass
             self._pyaudio = None
 
@@ -336,7 +379,8 @@ if __name__ == '__main__':
         if chunk_count[0] % 10 == 0:
             state = "SPEECH" if is_speech else "SILENCE"
             energy = chunk.energy
-            print(f"  [{state:7s}] Energy: {energy:.6f}, Chunks: {chunk_count[0]}")
+            print(
+                f"  [{state:7s}] Energy: {energy:.6f}, Chunks: {chunk_count[0]}")
 
     try:
         print("1. Starting audio capture...")
@@ -379,7 +423,8 @@ if __name__ == '__main__':
         if 'noise_filter' in stats:
             print(f"\n   Noise Filter:")
             print(f"   - Calibrated: {stats['noise_filter']['is_calibrated']}")
-            print(f"   - Noise samples: {stats['noise_filter']['noise_samples']}")
+            print(
+                f"   - Noise samples: {stats['noise_filter']['noise_samples']}")
 
         print("\n" + "=" * 60)
         print("[OK] Test completed successfully")

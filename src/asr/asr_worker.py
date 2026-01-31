@@ -71,9 +71,19 @@ class ASRWorker(threading.Thread):
                     text = result['text']
                     logger.info(f"ASR Recognized: {text}")
 
+                    # Extract confidence from Vosk result if available
+                    # Vosk provides word-level confidence in 'result' array
+                    confidence = 1.0
+                    if 'result' in result and result['result']:
+                        # Average word confidences
+                        word_confs = [w.get('conf', 1.0)
+                                      for w in result['result']]
+                        confidence = sum(word_confs) / \
+                            len(word_confs) if word_confs else 1.0
+
                     event = TranscriptEvent(
                         text=text,
-                        confidence=1.0,  # Vosk doesn't always give confidence in simple result
+                        confidence=confidence,
                         is_final=True
                     )
 

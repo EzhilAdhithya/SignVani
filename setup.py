@@ -11,7 +11,8 @@ from pathlib import Path
 
 # Read README for long description
 readme_path = Path(__file__).parent / 'README.md'
-long_description = readme_path.read_text(encoding='utf-8') if readme_path.exists() else ''
+long_description = readme_path.read_text(
+    encoding='utf-8') if readme_path.exists() else ''
 
 # Read requirements
 requirements_path = Path(__file__).parent / 'requirements.txt'
@@ -48,7 +49,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'signvani=src.main:main',  # Will create 'signvani' command
+            'signvani=main:main',  # Will create 'signvani' command
         ],
     },
     classifiers=[

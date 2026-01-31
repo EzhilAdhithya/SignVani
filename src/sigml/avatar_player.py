@@ -18,19 +18,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from config.settings import PROJECT_ROOT
+from config.settings import avatar_config
 
 logger = logging.getLogger(__name__)
-
-
-# Configuration
-CWASA_PORT = 8052
-CWASA_HOST = 'localhost'
-CONNECTION_TIMEOUT = 5.0
-SEND_TIMEOUT = 10.0
-
-# Path to SiGML Player AppImage (downloaded by setup_avatar.py)
-SIGML_PLAYER_PATH = PROJECT_ROOT / 'bin' / 'SiGML-Player.AppImage'
 
 
 class CWASAPlayerError(Exception):
@@ -46,19 +36,19 @@ class CWASAPlayer:
     Can optionally auto-launch the player if not running.
     """
 
-    def __init__(self, host: str = CWASA_HOST, port: int = CWASA_PORT,
-                 auto_launch: bool = True):
+    def __init__(self, host: str = None, port: int = None,
+                 auto_launch: bool = None):
         """
         Initialize CWASA player client.
 
         Args:
-            host: Hostname where SiGML Player is running
-            port: TCP port (default 8052)
-            auto_launch: Attempt to launch player if not running
+            host: Hostname where SiGML Player is running (default from config)
+            port: TCP port (default from config)
+            auto_launch: Attempt to launch player if not running (default from config)
         """
-        self.host = host
-        self.port = port
-        self.auto_launch = auto_launch
+        self.host = host if host is not None else avatar_config.HOST
+        self.port = port if port is not None else avatar_config.PORT
+        self.auto_launch = auto_launch if auto_launch is not None else avatar_config.AUTO_LAUNCH
         self._player_process: Optional[subprocess.Popen] = None
 
     def is_player_running(self) -> bool:
@@ -77,22 +67,25 @@ class CWASAPlayer:
             return False
 
     def launch_player(self, wait_for_ready: bool = True,
-                      timeout: float = 10.0) -> bool:
+                      timeout: float = None) -> bool:
         """
         Launch the SiGML Player application.
 
         Args:
             wait_for_ready: Wait for player to accept connections
-            timeout: Maximum time to wait for player to be ready
+            timeout: Maximum time to wait for player to be ready (default from config)
 
         Returns:
             True if player was launched successfully
         """
+        if timeout is None:
+            timeout = avatar_config.LAUNCH_TIMEOUT
+
         if self.is_player_running():
             logger.info("SiGML Player is already running")
             return True
 
-        player_path = Path(SIGML_PLAYER_PATH)
+        player_path = Path(avatar_config.PLAYER_PATH)
 
         if not player_path.exists():
             logger.error(f"SiGML Player not found at {player_path}")
@@ -171,11 +164,11 @@ class CWASAPlayer:
 
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(CONNECTION_TIMEOUT)
+                sock.settimeout(avatar_config.CONNECTION_TIMEOUT)
                 sock.connect((self.host, self.port))
 
                 # Send SiGML as UTF-8
-                sock.settimeout(SEND_TIMEOUT)
+                sock.settimeout(avatar_config.SEND_TIMEOUT)
                 data = sigml_xml.encode('utf-8')
                 sock.sendall(data)
 

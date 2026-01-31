@@ -79,7 +79,8 @@ class PipelineOrchestrator:
             if self.avatar_player.is_player_running():
                 logger.info("CWASA Avatar Player connected")
             else:
-                logger.info("CWASA Avatar Player not running (will send when available)")
+                logger.info(
+                    "CWASA Avatar Player not running (will send when available)")
 
         # Setup signal handlers for graceful shutdown (important for RPi)
         self._setup_signal_handlers()
@@ -190,7 +191,8 @@ class PipelineOrchestrator:
                     self.avatar_player.send_sigml(output.sigml_xml)
                     print(f"AVATAR: ✓ Sent to CWASA player")
                 else:
-                    print(f"AVATAR: ⚠ Player not running (launch with scripts/setup_avatar.py)")
+                    print(
+                        f"AVATAR: ⚠ Player not running (launch with scripts/setup_avatar.py)")
             except CWASAPlayerError as e:
                 logger.warning(f"Avatar player error: {e}")
                 print(f"AVATAR: ✗ Error: {e}")
@@ -234,13 +236,13 @@ class PipelineOrchestrator:
         try:
             while not self.audio_queue.empty():
                 self.audio_queue.get_nowait()
-        except:
+        except queue.Empty:
             pass
 
         try:
             while not self.transcript_queue.empty():
                 self.transcript_queue.get_nowait()
-        except:
+        except queue.Empty:
             pass
 
 

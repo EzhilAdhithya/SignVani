@@ -46,8 +46,8 @@ class VoskConfig:
 
     # Vosk optimization settings (memory and performance)
     MAX_ALTERNATIVES: int = 1         # Reduce to 1 for memory efficiency
-    # Disable word-level timing (saves memory)
-    WORDS: bool = False
+    # Enable word-level results for confidence scores
+    WORDS: bool = True
 
     # Model download URL
     MODEL_URL: str = f'https://alphacephei.com/vosk/models/{MODEL_NAME}.zip'
@@ -124,6 +124,22 @@ class SiGMLConfig:
 
 
 @dataclass(frozen=True)
+class AvatarConfig:
+    """CWASA SiGML Avatar Player configuration"""
+
+    # Network settings
+    HOST: str = 'localhost'
+    PORT: int = 8052
+    CONNECTION_TIMEOUT: float = 5.0
+    SEND_TIMEOUT: float = 10.0
+
+    # Player settings
+    PLAYER_PATH: str = str(PROJECT_ROOT / 'bin' / 'SiGML-Player.AppImage')
+    AUTO_LAUNCH: bool = True
+    LAUNCH_TIMEOUT: float = 10.0
+
+
+@dataclass(frozen=True)
 class LoggingConfig:
     """Logging configuration (SD card-friendly)"""
 
@@ -146,6 +162,7 @@ nlp_config = NLPConfig()
 database_config = DatabaseConfig()
 pipeline_config = PipelineConfig()
 sigml_config = SiGMLConfig()
+avatar_config = AvatarConfig()
 logging_config = LoggingConfig()
 
 
@@ -158,7 +175,8 @@ def print_config():
         'NLP': nlp_config,
         'Database': database_config,
         'Pipeline': pipeline_config,
-        'SiGML': sigml_config,
+        'SiGML': sigml_config,        
+        'Avatar': avatar_config,        
         'Logging': logging_config
     }
 
