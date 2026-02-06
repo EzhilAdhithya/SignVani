@@ -10,7 +10,6 @@ import xbotPic from '../Models/xbot/xbot.png';
 import ybotPic from '../Models/ybot/ybot.png';
 
 import * as words from '../Animations/words';
-import * as alphabets from '../Animations/alphabets';
 import { playAnimation, playWord } from '../Animations/animationPlayer';
 
 import { useThreeScene } from '../Hooks/useThreeScene';

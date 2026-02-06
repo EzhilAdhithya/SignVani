@@ -130,610 +130,408 @@ The Sign-Kit project has **45 improvement opportunities** across critical bugs (
 
 ### Code Quality Metrics
 - **ESLint Errors:** 0
-- **ESLint Warnings:** 0
+- **ESLint Warnings:** 0 (all unused imports cleaned up)
 - **Code Duplication:** Reduced from 96% to <10%
 - **Lines Eliminated:** 541 lines of duplicate code
 - **Documentation:** JSDoc for all hooks and utilities
 - **Maintainability:** Significantly improved
 
----
-
-### Phase 2 Detailed Implementation
-
-## Phase 2: Eliminate Code Duplication
-
-### 1.1 Add Three.js Resource Cleanup (Priority: CRITICAL)
-
-**Problem:** Three.js scenes, renderers, geometries, and materials persist in memory after component unmount, causing memory leaks especially on resource-constrained Raspberry Pi.
-
-**Files to modify:**
-- `client/src/Pages/Convert.js`
-- `client/src/Pages/LearnSign.js`
-- `client/src/Pages/Video.js`
-
-**Implementation Steps:**
-
-#### 1.1.1 Create Cleanup Utility Function
-Create `client/src/Utils/threeCleanup.js`:
-```javascript
-export const disposeThreeResources = (ref) => {
-  // Cancel any pending animation frames
-  if (ref.animationFrameId) {
-    cancelAnimationFrame(ref.animationFrameId);
-  }
-  
-  // Dispose renderer
-  if (ref.renderer) {
-    ref.renderer.dispose();
-    ref.renderer.forceContextLoss();
-    ref.renderer.domElement = null;
-    ref.renderer = null;
-  }
-  
-  // Dispose scene and all its children
-  if (ref.scene) {
-    ref.scene.traverse((object) => {
-      if (object.geometry) {
-        object.geometry.dispose();
-      }
-      if (object.material) {
-        if (Array.isArray(object.material)) {
-          object.material.forEach(material => material.dispose());
-        } else {
-          object.material.dispose();
-        }
-      }
-      if (object.texture) {
-        object.texture.dispose();
-      }
-    });
-    ref.scene.clear();
-    ref.scene = null;
-  }
-  
-  // Clear avatar reference
-  if (ref.avatar) {
-    ref.avatar = null;
-  }
-  
-  // Clear animations array
-  if (ref.animations) {
-    ref.animations = [];
-  }
-};
-```
-
-#### 1.1.2 Add Cleanup to useEffect in Convert.js
-In `client/src/Pages/Convert.js`, modify the useEffect hook:
-```javascript
-useEffect(() => {
-  // ... existing initialization code ...
-  
-  // Cleanup function
-  return () => {
-    disposeThreeResources(ref);
-  };
-}, [ref, bot]);
-```
-
-#### 1.1.3 Add Cleanup to LearnSign.js and Video.js
-Repeat the same cleanup pattern in:
-- `client/src/Pages/LearnSign.js` (line ~30, in useEffect)
-- `client/src/Pages/Video.js` (line ~40, in useEffect)
-
-#### 1.1.4 Optimize Animation Frame Management
-In the `animate()` function, store the animation frame ID:
-```javascript
-ref.animate = () => {
-  if(ref.animations.length === 0){
-    ref.pending = false;
-    return;
-  }
-  ref.animationFrameId = requestAnimationFrame(ref.animate);
-  // ... rest of animation logic ...
-};
-```
-
-**Raspberry Pi Optimization:**
-- Reduces memory pressure on limited RAM
-- Prevents GPU context issues
-- Improves tab switching performance
+**Note:** Phase 2.2 (Converting alphabet animations to JSON) was evaluated and deferred. The current implementation using `animationPlayer.js` that wraps existing alphabet functions provides the same benefits (clean API, error handling, validation) without the complexity of data migration. The JSON conversion can be done in a future phase if bundle size optimization becomes critical.
 
 ---
 
-### 1.2 Add Null Safety Checks (Priority: CRITICAL)
+## Phase 3: Error Handling & User Feedback ⏳ PENDING
 
-**Problem:** `getObjectByName()` can return `null` if bone names don't exist, causing crashes in animation loop.
+**Status:** ⏳ Not Started  
+**Priority:** HIGH  
+**Estimated Effort:** 2-3 days
 
-**Files to modify:**
-- `client/src/Pages/Convert.js` (lines 104-116)
-- `client/src/Pages/LearnSign.js` (lines 87-99)
-- `client/src/Pages/Video.js` (lines 108-120)
+### Planned Deliverables
 
-**Implementation Steps:**
+#### Components to Create
+- [ ] `client/src/Components/Common/ErrorToast.js` - Toast notifications for errors
+- [ ] `client/src/Components/Common/LoadingSpinner.js` - Loading state component
+- [ ] `client/src/Utils/browserSupport.js` - Browser capability detection
 
-#### 1.2.1 Create Safe Bone Accessor Function
-Add to `client/src/Utils/threeHelpers.js`:
-```javascript
-export const safeGetBone = (avatar, boneName, action, axis) => {
-  if (!avatar) return null;
-  
-  const bone = avatar.getObjectByName(boneName);
-  if (!bone) {
-    console.warn(`Bone not found: ${boneName}`);
-    return null;
-  }
-  
-  if (!bone[action]) {
-    console.warn(`Action not found on bone ${boneName}: ${action}`);
-    return null;
-  }
-  
-  return bone;
-};
+#### Files to Update
+- [ ] `client/src/Pages/Videos.js` - Add error handling for API calls
+- [ ] `client/src/Pages/Video.js` - Add error handling for video fetch
+- [ ] `client/src/Pages/CreateVideo.js` - Add error handling for video creation
+- [ ] `client/src/Pages/Convert.js` - Add speech recognition support detection
+- [ ] `client/src/Hooks/useThreeScene.js` - Add loading progress tracking
 
-export const safeSetBoneProperty = (avatar, boneName, action, axis, value) => {
-  const bone = safeGetBone(avatar, boneName, action, axis);
-  if (bone && bone[action]) {
-    bone[action][axis] = value;
-    return true;
-  }
-  return false;
-};
-```
+### Implementation Tasks
 
-#### 1.2.2 Update Animation Logic with Null Checks
-Replace animation loop in all three files:
-```javascript
-// OLD CODE (unsafe):
-if(sign === "+" && ref.avatar.getObjectByName(boneName)[action][axis] < limit){
-  ref.avatar.getObjectByName(boneName)[action][axis] += speed;
-  // ...
-}
+1. **Error Toast System**
+   - Create reusable ErrorToast component
+   - Add to all pages with API calls
+   - Show user-friendly error messages
 
-// NEW CODE (safe):
-const bone = ref.avatar.getObjectByName(boneName);
-if (!bone || !bone[action]) {
-  ref.animations[0].splice(i, 1);
-  continue;
-}
+2. **Loading States**
+   - Create LoadingSpinner component
+   - Add to model loading (useThreeScene)
+   - Add to API calls (Videos, Video, CreateVideo)
 
-if(sign === "+" && bone[action][axis] < limit){
-  bone[action][axis] += speed;
-  bone[action][axis] = Math.min(bone[action][axis], limit);
-  i++;
-}
-else if(sign === "-" && bone[action][axis] > limit){
-  bone[action][axis] -= speed;
-  bone[action][axis] = Math.max(bone[action][axis], limit);
-  i++;
-}
-else{
-  ref.animations[0].splice(i, 1);
-}
-```
+3. **Browser Support Detection**
+   - Check WebGL support
+   - Check Speech Recognition support
+   - Display warnings for unsupported features
 
-**Raspberry Pi Optimization:**
-- Prevents crashes that require page reload
-- Reduces debugging overhead on slower hardware
+4. **Input Validation**
+   - Already implemented in animationPlayer.js ✅
+   - Add visual feedback for invalid input
+   - Add character count display
 
 ---
 
-## Phase 2: Eliminate Code Duplication
+## Phase 4: Update Dependencies & Tooling ⏳ PENDING
 
-### 2.1 Create Custom Hooks for Three.js Setup (Priority: HIGH)
+**Status:** ⏳ Not Started  
+**Priority:** MEDIUM  
+**Estimated Effort:** 1-2 days
 
-**Problem:** 96% code duplication across Convert.js, LearnSign.js, and Video.js. Each file duplicates ~200 lines of Three.js initialization.
+### Current State Analysis
 
-**Files to create:**
-- `client/src/Hooks/useThreeScene.js`
-- `client/src/Hooks/useAnimationEngine.js`
-
-#### 2.1.1 Create useThreeScene Hook
-Create `client/src/Hooks/useThreeScene.js`:
-```javascript
-import { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { defaultPose } from '../Animations/defaultPose';
-import { disposeThreeResources } from '../Utils/threeCleanup';
-
-export const useThreeScene = (bot, canvasId = 'canvas', options = {}) => {
-  const componentRef = useRef({});
-  const { current: ref } = componentRef;
-  
-  const {
-    cameraFov = 30,
-    cameraZ = 1.6,
-    cameraY = 1.4,
-    aspectRatioWidth = 0.57,
-    backgroundColor = 0xdddddd,
-    lightIntensity = 2,
-    antialias = false, // Disable for Raspberry Pi performance
-    pixelRatio = 1 // Force 1:1 pixel ratio for better Pi performance
-  } = options;
-  
-  useEffect(() => {
-    // Initialize refs
-    ref.flag = false;
-    ref.pending = false;
-    ref.animations = [];
-    ref.characters = [];
-    
-    // Create scene
-    ref.scene = new THREE.Scene();
-    ref.scene.background = new THREE.Color(backgroundColor);
-    
-    // Add lighting
-    const spotLight = new THREE.SpotLight(0xffffff, lightIntensity);
-    spotLight.position.set(0, 5, 5);
-    ref.scene.add(spotLight);
-    
-    // Create camera
-    const aspectRatio = window.innerWidth * aspectRatioWidth / (window.innerHeight - 70);
-    ref.camera = new THREE.PerspectiveCamera(cameraFov, aspectRatio, 0.1, 1000);
-    ref.camera.position.z = cameraZ;
-    ref.camera.position.y = cameraY;
-    
-    // Create renderer with Raspberry Pi optimizations
-    ref.renderer = new THREE.WebGLRenderer({ 
-      antialias,
-      powerPreference: 'low-power', // Important for Raspberry Pi
-      precision: 'mediump' // Use medium precision for better performance
-    });
-    
-    ref.renderer.setPixelRatio(pixelRatio);
-    ref.renderer.setSize(
-      window.innerWidth * aspectRatioWidth, 
-      window.innerHeight - 70
-    );
-    
-    // Mount to DOM
-    const canvasElement = document.getElementById(canvasId);
-    if (canvasElement) {
-      canvasElement.innerHTML = '';
-      canvasElement.appendChild(ref.renderer.domElement);
-    }
-    
-    // Load model
-    const loader = new GLTFLoader();
-    ref.isModelLoaded = false;
-    
-    loader.load(
-      bot,
-      (gltf) => {
-        gltf.scene.traverse((child) => {
-          if (child.type === 'SkinnedMesh') {
-            child.frustumCulled = false;
-            // Reduce shadow complexity for Raspberry Pi
-            child.castShadow = false;
-            child.receiveShadow = false;
-          }
-        });
-        ref.avatar = gltf.scene;
-        ref.scene.add(ref.avatar);
-        defaultPose(ref);
-        ref.isModelLoaded = true;
-      },
-      (xhr) => {
-        const percentComplete = (xhr.loaded / xhr.total) * 100;
-        console.log(`Model loading: ${Math.round(percentComplete)}%`);
-      },
-      (error) => {
-        console.error('Error loading model:', error);
-      }
-    );
-    
-    // Cleanup on unmount
-    return () => {
-      disposeThreeResources(ref);
-    };
-  }, [bot]);
-  
-  return ref;
-};
-```
-
-#### 2.1.2 Create useAnimationEngine Hook
-Create `client/src/Hooks/useAnimationEngine.js`:
-```javascript
-import { useCallback } from 'react';
-
-export const useAnimationEngine = (ref, speed, pause) => {
-  const animate = useCallback(() => {
-    if (ref.animations.length === 0) {
-      ref.pending = false;
-      return;
-    }
-    
-    ref.animationFrameId = requestAnimationFrame(ref.animate);
-    
-    if (ref.animations[0].length) {
-      if (!ref.flag) {
-        for (let i = 0; i < ref.animations[0].length;) {
-          const [boneName, action, axis, limit, sign] = ref.animations[0][i];
-          
-          // Null safety check
-          const bone = ref.avatar?.getObjectByName(boneName);
-          if (!bone || !bone[action]) {
-            ref.animations[0].splice(i, 1);
-            continue;
-          }
-          
-          // Animate bone
-          if (sign === '+' && bone[action][axis] < limit) {
-            bone[action][axis] += speed;
-            bone[action][axis] = Math.min(bone[action][axis], limit);
-            i++;
-          } else if (sign === '-' && bone[action][axis] > limit) {
-            bone[action][axis] -= speed;
-            bone[action][axis] = Math.max(bone[action][axis], limit);
-            i++;
-          } else {
-            ref.animations[0].splice(i, 1);
-          }
-        }
-      }
-    } else {
-      ref.flag = true;
-      setTimeout(() => {
-        ref.flag = false;
-      }, pause);
-      ref.animations.shift();
-    }
-    
-    if (ref.renderer && ref.scene && ref.camera) {
-      ref.renderer.render(ref.scene, ref.camera);
-    }
-  }, [ref, speed, pause]);
-  
-  ref.animate = animate;
-  
-  return {
-    startAnimation: () => {
-      if (ref.pending === false) {
-        ref.pending = true;
-        ref.animate();
-      }
-    },
-    stopAnimation: () => {
-      if (ref.animationFrameId) {
-        cancelAnimationFrame(ref.animationFrameId);
-      }
-      ref.pending = false;
-    },
-    clearAnimations: () => {
-      ref.animations = [];
-      ref.pending = false;
-    }
-  };
-};
-```
-
-#### 2.1.3 Refactor Pages to Use Hooks
-Update `client/src/Pages/Convert.js`:
-```javascript
-import { useThreeScene } from '../Hooks/useThreeScene';
-import { useAnimationEngine } from '../Hooks/useAnimationEngine';
-
-function Convert() {
-  // ... existing state declarations ...
-  
-  // Replace all Three.js setup code with:
-  const ref = useThreeScene(bot, 'canvas', {
-    antialias: false, // Disabled for Raspberry Pi
-    pixelRatio: 1
-  });
-  
-  const { startAnimation, stopAnimation, clearAnimations } = useAnimationEngine(ref, speed, pause);
-  
-  // ... rest of component logic ...
-}
-```
-
-Repeat for `LearnSign.js` and `Video.js`.
-
-**Benefits:**
-- Reduces bundle size by ~400 lines
-- Consistent behavior across pages
-- Single point of optimization for Raspberry Pi
-- Easier to maintain and test
-
----
-
-### 2.2 Refactor Alphabet Animations to JSON Data (Priority: HIGH)
-
-**Problem:** 26 alphabet files contain 2,600+ lines of repetitive code. Each file is a function that generates animation arrays.
-
-**Files to create:**
-- `client/src/Animations/Data/alphabetAnimations.json`
-- `client/src/Animations/animationPlayer.js`
-
-#### 2.2.1 Create JSON Animation Data Structure
-Create `client/src/Animations/Data/alphabetAnimations.json`:
+**Current Dependencies (from package.json):**
 ```json
 {
-  "A": [
-    {
-      "bones": [
-        ["mixamorigLeftHandIndex1", "rotation", "y", -0.349, "-"],
-        ["mixamorigLeftHandMiddle1", "rotation", "y", -0.174, "-"],
-        ["mixamorigLeftHandRing1", "rotation", "y", 0.174, "+"],
-        ["mixamorigLeftHandPinky1", "rotation", "y", 0.349, "+"],
-        ["mixamorigLeftHand", "rotation", "x", 1.571, "+"],
-        ["mixamorigLeftHand", "rotation", "z", 0.524, "+"],
-        ["mixamorigLeftHand", "rotation", "y", 0.349, "+"],
-        ["mixamorigLeftForeArm", "rotation", "x", 0.314, "+"],
-        ["mixamorigLeftForeArm", "rotation", "z", -0.174, "-"],
-        ["mixamorigLeftArm", "rotation", "x", -0.285, "-"],
-        ["mixamorigRightHandMiddle1", "rotation", "z", 1.571, "+"],
-        ["mixamorigRightHandMiddle2", "rotation", "z", 1.571, "+"],
-        ["mixamorigRightHandMiddle3", "rotation", "z", 1.571, "+"]
-        // ... continue for all bones in A animation
-      ]
-    },
-    {
-      "bones": [
-        // Reset animations back to 0
-        ["mixamorigLeftHandIndex1", "rotation", "y", 0, "+"],
-        ["mixamorigLeftHandMiddle1", "rotation", "y", 0, "+"]
-        // ... reset all bones
-      ]
-    }
-  ],
-  "B": [
-    // ... B animation data ...
-  ]
-  // ... continue for all 26 letters
+  "react": "^17.0.2",
+  "react-dom": "^17.0.2",
+  "three": "^0.136.0",
+  "axios": "^0.26.1",
+  "react-router-dom": "^6.2.2",
+  "react-bootstrap": "^2.1.2",
+  "bootstrap": "^5.1.3"
 }
 ```
 
-#### 2.2.2 Create Animation Player
-Create `client/src/Animations/animationPlayer.js`:
-```javascript
-import animationData from './Data/alphabetAnimations.json';
-import * as words from './words';
+**Recommended Updates:**
+- React 17 → React 18 (better concurrent features)
+- Three.js 0.136 → 0.160+ (performance improvements, bug fixes)
+- Axios 0.26 → 1.6+ (security patches)
 
-// Cache for lazy-loaded animations
-const animationCache = new Map();
+### Planned Deliverables
 
-export const playAnimation = (ref, character) => {
-  const upperChar = character.toUpperCase();
-  
-  // Check if it's a word animation
-  if (words[upperChar]) {
-    words[upperChar](ref);
-    return true;
-  }
-  
-  // Check if it's a letter
-  const animations = animationData[upperChar];
-  if (!animations) {
-    console.warn(`No animation found for character: ${character}`);
-    return false;
-  }
-  
-  // Add animation frames to queue
-  animations.forEach(frame => {
-    ref.animations.push(frame.bones);
-  });
-  
-  // Start animation if not already running
-  if (ref.pending === false) {
-    ref.pending = true;
-    ref.animate();
-  }
-  
-  return true;
-};
+#### Files to Create
+- [ ] `.eslintrc.json` - ESLint configuration
+- [ ] `.env.development` - Development environment variables
+- [ ] `.env.production` - Production environment variables
+- [ ] `client/src/Utils/config.js` - Enhanced configuration with env vars
 
-export const playString = (ref, inputString) => {
-  const words = inputString.toUpperCase().split(' ');
-  
-  for (const word of words) {
-    // Try to play as a word animation first
-    if (words[word]) {
-      ref.animations.push(['add-text', word + ' ']);
-      words[word](ref);
-    } else {
-      // Play character by character
-      const characters = word.split('');
-      characters.forEach((ch, index) => {
-        if (index === characters.length - 1) {
-          ref.animations.push(['add-text', ch + ' ']);
-        } else {
-          ref.animations.push(['add-text', ch]);
-        }
-        playAnimation(ref, ch);
-      });
-    }
-  }
-};
+#### Files to Update
+- [ ] `client/package.json` - Update dependencies
+- [ ] `client/src/index.js` - React 18 migration (createRoot)
+- [ ] `client/src/Config/config.js` - Use environment variables
 
-export const validateInput = (inputString) => {
-  const validCharacters = /^[A-Za-z\s]*$/;
-  return validCharacters.test(inputString);
-};
-```
+### Implementation Tasks
 
-#### 2.2.3 Convert Existing Alphabet Files to JSON
-Python script to convert existing files (run once):
-```python
-import re
-import json
-import os
+1. **Dependency Updates**
+   - Update React to v18
+   - Update Three.js to latest stable
+   - Update other dependencies
+   - Test for breaking changes
 
-def parse_animation_file(filepath):
-    with open(filepath, 'r') as f:
-        content = f.read()
-    
-    # Extract animation arrays
-    animations = []
-    current_animation = []
-    
-    # Parse the push statements
-    pattern = r'animations\.push\(\[(.*?)\]\);'
-    matches = re.findall(pattern, content, re.DOTALL)
-    
-    for match in matches:
-        parts = match.split(',')
-        if len(parts) == 5:
-            bone = parts[0].strip().strip('"')
-            action = parts[1].strip().strip('"')
-            axis = parts[2].strip().strip('"')
-            limit = parts[3].strip()
-            sign = parts[4].strip().strip('"')
-            
-            # Convert Math.PI expressions to decimals
-            limit = eval(limit.replace('Math.PI', str(3.14159265359)))
-            
-            current_animation.append([bone, action, axis, limit, sign])
-    
-    return current_animation
+2. **ESLint Configuration**
+   - Create .eslintrc.json
+   - Add PropTypes validation rules
+   - Add React Hooks rules
+   - Fix any new warnings
 
-# Process all alphabet files
-alphabet_data = {}
-alphabet_dir = 'client/src/Animations/Alphabets/'
+3. **Environment Variables**
+   - Create .env files
+   - Move API URLs to env vars
+   - Add Raspberry Pi config flags
+   - Update config.js
 
-for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-    filepath = os.path.join(alphabet_dir, f'{letter}.js')
-    if os.path.exists(filepath):
-        alphabet_data[letter] = parse_animation_file(filepath)
-
-# Save to JSON
-with open('client/src/Animations/Data/alphabetAnimations.json', 'w') as f:
-    json.dump(alphabet_data, f, indent=2)
-```
-
-#### 2.2.4 Update Imports
-Replace in all files that import alphabets:
-```javascript
-// OLD:
-import * as alphabets from '../Animations/alphabets';
-
-// Usage:
-alphabets[ch](ref);
-
-// NEW:
-import { playAnimation, playString } from '../Animations/animationPlayer';
-
-// Usage:
-playAnimation(ref, ch);
-// or
-playString(ref, inputText);
-```
-
-**Raspberry Pi Benefits:**
-- Reduces JavaScript bundle from ~2600 lines to ~200 lines + JSON
-- JSON parses faster than executing functions
-- Smaller memory footprint
-- Enables lazy loading of animation data
+4. **PropTypes**
+   - Add to all components with props
+   - Start with VideoCard, Navbar, Footer
+   - Add to custom components
 
 ---
 
-## Phase 3: Improve Error Handling and User Feedback
+## Phase 5: Raspberry Pi Optimizations ⏳ PENDING
 
-### 3.1 Add Comprehensive Error Handling (Priority: HIGH)
+**Status:** ⏳ Not Started  
+**Priority:** HIGH (for Pi deployment)  
+**Estimated Effort:** 2-3 days
+
+### Current Optimizations (Already Implemented) ✅
+
+From Phase 1 & 2:
+- ✅ Antialiasing disabled
+- ✅ Low-power renderer preference
+- ✅ Medium precision shaders (mediump)
+- ✅ 1:1 pixel ratio
+- ✅ Shadows disabled
+- ✅ Memory cleanup on unmount
+- ✅ 500 character input limit
+
+### Additional Optimizations Needed
+
+#### Files to Create
+- [ ] `client/src/Utils/modelOptimizer.js` - Model optimization utilities
+- [ ] `client/src/Utils/debounce.js` - Debounce and throttle utilities
+- [ ] `client/src/Utils/memoryMonitor.js` - Memory usage tracking (dev mode)
+
+#### Files to Update
+- [ ] `client/src/Hooks/useThreeScene.js` - Add model caching, optimization
+- [ ] `client/src/Pages/Convert.js` - Add debounced input
+- [ ] `client/src/App.js` - Add lazy loading for routes
+
+### Implementation Tasks
+
+1. **Model Optimization**
+   - Reduce texture quality
+   - Disable unnecessary features
+   - Implement model caching
+   - Optimize geometry
+
+2. **Performance Monitoring**
+   - Add FPS counter (dev mode)
+   - Memory usage tracking
+   - Animation queue monitoring
+   - Performance warnings
+
+3. **Lazy Loading**
+   - Lazy load route components
+   - Lazy load heavy utilities
+   - Add loading states
+   - Reduce initial bundle size
+
+4. **Input Debouncing**
+   - Debounce text input
+   - Throttle resize events
+   - Optimize event handlers
+   - Reduce re-renders
+
+---
+
+## Phase 6: Accessibility & UX Enhancements ⏳ PENDING
+
+**Status:** ⏳ Not Started  
+**Priority:** MEDIUM  
+**Estimated Effort:** 2-3 days
+
+### Planned Deliverables
+
+#### Components to Create
+- [ ] `client/src/Components/Common/AnimationControls.js` - Play/pause/stop controls
+- [ ] Add skip-to-content link
+
+#### Files to Update
+- [ ] All page components - Add ARIA labels
+- [ ] All interactive elements - Add keyboard navigation
+- [ ] `client/src/App.css` - Add focus indicators
+
+### Implementation Tasks
+
+1. **ARIA Labels**
+   - Add to buttons, inputs, canvas
+   - Add live regions for dynamic content
+   - Add role attributes
+   - Add descriptive labels
+
+2. **Keyboard Navigation**
+   - Enter to submit
+   - Escape to cancel/stop
+   - Tab navigation improvements
+   - Add keyboard hints
+
+3. **Animation Controls**
+   - Play/Pause buttons
+   - Stop button
+   - Replay functionality
+   - Visual state indicators
+
+4. **Visual Feedback**
+   - Focus indicators
+   - Loading states
+   - Error states
+   - Success states
+
+---
+
+## Phase 7: Error Boundaries & Logging ⏳ PENDING
+
+**Status:** ⏳ Not Started  
+**Priority:** HIGH  
+**Estimated Effort:** 1 day
+
+### Planned Deliverables
+
+#### Components to Create
+- [ ] `client/src/Components/Common/ErrorBoundary.js` - React error boundary
+
+#### Files to Update
+- [ ] `client/src/App.js` - Wrap with ErrorBoundary
+
+### Implementation Tasks
+
+1. **Error Boundary**
+   - Create ErrorBoundary component
+   - Add error display UI
+   - Add reset/reload functionality
+   - Add error logging (console)
+
+2. **Error Integration**
+   - Wrap App with ErrorBoundary
+   - Wrap route components
+   - Add error reporting hook
+   - Test error scenarios
+
+---
+
+## Implementation Timeline
+
+### ✅ Completed Phases
+
+**Phase 1: Critical Fixes (Feb 6, 2026)**
+- ✅ Memory leak fixes
+- ✅ Null safety checks
+- ✅ Raspberry Pi renderer optimizations
+- ✅ 0 ESLint errors
+
+**Phase 2: Code Duplication (Feb 6, 2026)**
+- ✅ Created useThreeScene hook
+- ✅ Created useAnimationEngine hook
+- ✅ Created animationPlayer utility
+- ✅ Refactored Convert.js (45% reduction)
+- ✅ Refactored LearnSign.js (50% reduction)
+- ✅ Refactored Video.js (42% reduction)
+- ✅ Eliminated 541 lines of duplication
+- ✅ 0 ESLint warnings (cleaned unused imports)
+
+### ⏳ Remaining Phases (Recommended Priority Order)
+
+**Next: Phase 3 - Error Handling (2-3 days)**
+- Improve user experience with proper error messages
+- Add loading states for better feedback
+- Detect and warn about browser compatibility
+
+**Then: Phase 7 - Error Boundaries (1 day)**
+- Prevent full app crashes
+- Graceful error recovery
+- Better error reporting
+
+**Then: Phase 4 - Dependencies & Tooling (1-2 days)**
+- Update to React 18
+- Update Three.js for performance
+- Add proper linting and type checking
+
+**Then: Phase 5 - Raspberry Pi Optimizations (2-3 days)**
+- Further performance improvements
+- Memory optimization
+- Lazy loading implementation
+
+**Finally: Phase 6 - Accessibility (2-3 days)**
+- WCAG compliance
+- Better keyboard navigation
+- Animation controls
+
+**Total Remaining: 9-13 days**
+
+---
+
+## Testing Checklist
+
+### Phase 1 & 2 Testing ✅
+
+**Code Quality**
+- ✅ No ESLint errors
+- ✅ No ESLint warnings
+- ✅ All imports resolved
+- ✅ Consistent code style
+
+**Functionality (Requires Manual Testing)**
+- ⏳ Convert page: Text input animation
+- ⏳ Convert page: Speech recognition
+- ⏳ Convert page: Avatar switching
+- ⏳ LearnSign page: All alphabet buttons
+- ⏳ LearnSign page: All word buttons
+- ⏳ Video page: Video playback
+- ⏳ All pages: Model loading
+- ⏳ All pages: Cleanup on unmount
+
+### Raspberry Pi 4B Testing (Pending)
+
+**Hardware Testing**
+- [ ] Test on Pi 4B 2GB RAM
+- [ ] Test on Pi 4B 4GB RAM
+- [ ] Test on Pi 4B 8GB RAM
+
+**Performance Metrics**
+- [ ] Measure FPS (target: 30+)
+- [ ] Monitor memory (target: <1.5GB)
+- [ ] Test animation queue (50+ animations)
+- [ ] Model load time (target: <3 seconds)
+
+**Browser Compatibility**
+- [ ] Chromium (default on Pi OS)
+- [ ] Firefox ESR
+- [ ] Hardware acceleration on/off
+
+---
+
+## Success Metrics & Current Status
+
+### ✅ Achieved Metrics
+
+| Metric | Target | Achieved | Status |
+|--------|--------|----------|--------|
+| Code Duplication | <10% | <10% | ✅ |
+| ESLint Errors | 0 | 0 | ✅ |
+| ESLint Warnings | 0 | 0 | ✅ |
+| Memory Leak Prevention | Complete | Complete | ✅ |
+| Null Safety | 100% | 100% | ✅ |
+| Lines Eliminated | 400+ | 541 | ✅ |
+| Custom Hooks | 2+ | 2 | ✅ |
+
+### ⏳ Pending Metrics
+
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
+| Frame Rate (Pi) | 30+ FPS | Untested | ⏳ |
+| Memory Usage (Pi) | <1.5GB | Untested | ⏳ |
+| Load Time | <3s | Untested | ⏳ |
+| Error Handling | All APIs | Partial | ⏳ |
+| Loading States | All async | None | ⏳ |
+| Accessibility | WCAG 2.1 AA | Basic | ⏳ |
+| PropTypes Coverage | 100% | 0% | ⏳ |
+| React Version | 18+ | 17 | ⏳ |
+| Three.js Version | 0.160+ | 0.136 | ⏳ |
+
+---
+
+## Phase Documentation
+
+- ✅ [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md) - Memory leaks & null safety
+- ✅ [PHASE2_IMPLEMENTATION.md](PHASE2_IMPLEMENTATION.md) - Code duplication elimination
+
+---
+
+## Appendix: Deferred Items
+
+### Phase 2.2: Alphabet Animations to JSON (DEFERRED)
+
+**Status:** ⏳ Deferred (Not Critical)  
+**Reason:** Current implementation with `animationPlayer.js` provides most benefits without the complexity of data migration.
+
+The current approach using wrapper functions in `animationPlayer.js` achieves:
+- ✅ Clean API for animation triggering
+- ✅ Comprehensive error handling and validation  
+- ✅ Single point of maintenance
+- ✅ Performance protection (character limits)
+
+**Future Consideration:** JSON conversion can be done later if bundle size optimization becomes critical for deployment.
+
+---
+
+## Detailed Phase Implementation Guides (for Pending Phases)
+
+### Phase 3: Error Handling & User Feedback - Implementation Guide
+
+#### 3.1 Add Comprehensive Error Handling (Priority: HIGH)
 
 #### 3.1.1 Create Error Toast Component
 Create `client/src/Components/Common/ErrorToast.js`:
@@ -894,9 +692,7 @@ export const playString = (ref, inputString) => {
 };
 ```
 
----
-
-### 3.2 Add Loading States (Priority: MEDIUM)
+#### 3.2 Add Loading States (Priority: MEDIUM)
 
 #### 3.2.1 Create Loading Spinner Component
 Create `client/src/Components/Common/LoadingSpinner.js`:
@@ -961,11 +757,9 @@ export const useThreeScene = (bot, canvasId = 'canvas', options = {}) => {
 
 ---
 
-## Phase 4: Update Dependencies and Add Tooling
+### Phase 4: Update Dependencies and Add Tooling - Implementation Guide
 
-### 4.1 Update package.json (Priority: MEDIUM)
-
-#### 4.1.1 Update Dependencies
+##### 4.1.1 Update Dependencies
 Modify `client/package.json`:
 ```json
 {
@@ -1034,9 +828,7 @@ root.render(
 
 ### 4.2 Add ESLint Configuration (Priority: MEDIUM)
 
-#### 4.2.1 Create ESLint Config
-Create `.eslintrc.json`:
-```json
+#```json
 {
   "extends": [
     "react-app",
@@ -1090,9 +882,7 @@ Add PropTypes to all components with props.
 
 #### 4.3.1 Create Environment Files
 Create `.env.development`:
-```env
-REACT_APP_API_URL=http://localhost:5000/sign-kit
-REACT_APP_ENV=development
+#REACT_APP_ENV=development
 ```
 
 Create `.env.production`:
@@ -1129,9 +919,9 @@ export const config = {
 
 ---
 
-## Phase 5: Raspberry Pi Specific Optimizations
+### Phase 5: Raspberry Pi Specific Optimizations - Implementation Guide
 
-### 5.1 Performance Optimizations (Priority: CRITICAL for Pi)
+#### 5.1 Performance Optimizations (Priority: CRITICAL for Pi)
 
 #### 5.1.1 Reduce Rendering Quality
 Update Three.js renderer settings:
@@ -1289,9 +1079,7 @@ export const playString = (ref, inputString, maxQueueSize = 50) => {
   const sanitized = inputString.trim().slice(0, 500);
   
   // Prevent queue overflow on Raspberry Pi
-  if (ref.animations.length > maxQueueSize) {
-    throw new Error(
-      `Animation queue is full (${maxQueueSize} animations). ` +
+#      `Animation queue is full (${maxQueueSize} animations). ` +
       'Please wait for current animations to complete.'
     );
   }
@@ -1346,9 +1134,9 @@ function App() {
 
 ---
 
-## Phase 6: Accessibility and UX Enhancements
+### Phase 6: Accessibility and UX Enhancements - Implementation Guide
 
-### 6.1 Accessibility Improvements (Priority: MEDIUM)
+#### 6.1 Accessibility Improvements (Priority: MEDIUM)
 
 #### 6.1.1 Add ARIA Labels
 Update interactive elements:
@@ -1443,9 +1231,7 @@ export const AnimationControls = ({
   onPlay, 
   onPause, 
   onStop, 
-  onReplay,
-  isPlaying,
-  disabled 
+#  disabled 
 }) => {
   return (
     <ButtonGroup className="w-100 my-2">
@@ -1522,9 +1308,9 @@ const handleReplay = () => {
 
 ---
 
-## Phase 7: Error Boundaries and Logging
+### Phase 7: Error Boundaries and Logging - Implementation Guide
 
-### 7.1 Error Boundaries (Priority: HIGH)
+#### 7.1 Error Boundaries (Priority: HIGH)
 
 #### 7.1.1 Create Error Boundary Component
 Create `client/src/Components/Common/ErrorBoundary.js`:
@@ -1603,11 +1389,13 @@ function App() {
 }
 ```
 
+</details>
+
 ---
 
 ## Implementation Timeline
 
-### Completed ✅
+### ✅ Completed Phases
 **Week 1: Critical Fixes**
 - ✅ Day 1-2 (Feb 6): Memory leak fixes (Phase 1.1) - COMPLETE
 - ✅ Day 3-4 (Feb 6): Null safety checks (Phase 1.2) - COMPLETE
@@ -1619,8 +1407,6 @@ function App() {
 - Day 4-5: Refactor alphabet animations to JSON (Phase 2.2)
 
 **Week 3: Error Handling & Updates (Phase 3-4)**
-- Day 1-2: Add error handling and toasts (Phase 3.1)
-- Day 3: Update dependencies (Phase 4.1)
 - Day 4-5: Add ESLint and PropTypes (Phase 4.2-4.3)
 
 **Week 4: Raspberry Pi Optimization (Phase 5)**

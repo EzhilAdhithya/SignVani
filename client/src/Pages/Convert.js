@@ -1,5 +1,5 @@
 import '../App.css'
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Slider from 'react-input-slider';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'font-awesome/css/font-awesome.min.css';
@@ -9,8 +9,6 @@ import ybot from '../Models/ybot/ybot.glb';
 import xbotPic from '../Models/xbot/xbot.png';
 import ybotPic from '../Models/ybot/ybot.png';
 
-import * as words from '../Animations/words';
-import * as alphabets from '../Animations/alphabets';
 import { playString } from '../Animations/animationPlayer';
 
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
