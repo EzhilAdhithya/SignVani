@@ -1,5 +1,5 @@
 import '../App.css'
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import Slider from 'react-input-slider';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'font-awesome/css/font-awesome.min.css';
@@ -11,24 +11,18 @@ import ybotPic from '../Models/ybot/ybot.png';
 
 import * as words from '../Animations/words';
 import * as alphabets from '../Animations/alphabets';
-import { defaultPose } from '../Animations/defaultPose';
-
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { playString } from '../Animations/animationPlayer';
 
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
-import { disposeThreeResources } from '../Utils/threeCleanup';
-import { validateBoneAction } from '../Utils/threeHelpers';
+import { useThreeScene } from '../Hooks/useThreeScene';
+import { useAnimationEngine } from '../Hooks/useAnimationEngine';
 
 function Convert() {
   const [text, setText] = useState("");
   const [bot, setBot] = useState(ybot);
   const [speed, setSpeed] = useState(0.1);
   const [pause, setPause] = useState(800);
-
-  const componentRef = useRef({});
-  const { current: ref } = componentRef;
 
   let textFromAudio = React.createRef();
   let textFromInput = React.createRef();
@@ -39,158 +33,25 @@ function Convert() {
     resetTranscript,
   } = useSpeechRecognition();
 
-  useEffect(() => {
-
-    ref.flag = false;
-    ref.pending = false;
-
-    ref.animations = [];
-    ref.characters = [];
-
-    ref.scene = new THREE.Scene();
-    ref.scene.background = new THREE.Color(0xdddddd);
-
-    const spotLight = new THREE.SpotLight(0xffffff, 2);
-    spotLight.position.set(0, 5, 5);
-    ref.scene.add(spotLight);
-    
-    // Optimized renderer settings for Raspberry Pi performance
-    ref.renderer = new THREE.WebGLRenderer({ 
-      antialias: false,  // Disabled for better performance on Pi
-      powerPreference: 'low-power',  // Critical for Raspberry Pi
-      precision: 'mediump'  // Use medium precision for better performance
-    });
-
-    ref.camera = new THREE.PerspectiveCamera(
-        30,
-        window.innerWidth * 0.57 / (window.innerHeight - 70),
-        0.1,
-        1000
-    )
-    ref.renderer.setPixelRatio(1);  // Force 1:1 pixel ratio for Pi performance
-    ref.renderer.setSize(window.innerWidth * 0.57, window.innerHeight - 70);
-
-    document.getElementById("canvas").innerHTML = "";
-    document.getElementById("canvas").appendChild(ref.renderer.domElement);
-
-    ref.camera.position.z = 1.6;
-    ref.camera.position.y = 1.4;
-
-    let loader = new GLTFLoader();
-    loader.load(
-      bot,
-      (gltf) => {
-        gltf.scene.traverse((child) => {
-          if ( child.type === 'SkinnedMesh' ) {
-            child.frustumCulled = false;
-            // Disable shadows for better Raspberry Pi performance
-            child.castShadow = false;
-            child.receiveShadow = false;
-          }
-        });
-        ref.avatar = gltf.scene;
-        ref.scene.add(ref.avatar);
-        defaultPose(ref);
-      },
-      (xhr) => {
-        console.log(`Model loading: ${Math.round((xhr.loaded / xhr.total) * 100)}%`);
-      },
-      (error) => {
-        console.error('Error loading model:', error);
-      }
-    );
-
-    // Cleanup function to prevent memory leaks
-    return () => {
-      disposeThreeResources(ref);
-    };
-  }, [ref, bot]);
-
-  ref.animate = () => {
-    if(ref.animations.length === 0){
-        ref.pending = false;
-      return ;
-    }
-    
-    // Store animation frame ID for proper cleanup
-    ref.animationFrameId = requestAnimationFrame(ref.animate);
-    
-    if(ref.animations[0].length){
-        if(!ref.flag) {
-          if(ref.animations[0][0]==='add-text'){
-            setText(text + ref.animations[0][1]);
-            ref.animations.shift();
-          }
-          else{
-            for(let i=0;i<ref.animations[0].length;){
-              let [boneName, action, axis, limit, sign] = ref.animations[0][i]
-              
-              // Null safety check: ensure avatar and bone exist
-              if (!ref.avatar) {
-                ref.animations[0].splice(i, 1);
-                continue;
-              }
-              
-              const bone = ref.avatar.getObjectByName(boneName);
-              if (!bone || !validateBoneAction(bone, action, axis)) {
-                // Remove invalid animation and continue
-                ref.animations[0].splice(i, 1);
-                continue;
-              }
-              
-              if(sign === "+" && bone[action][axis] < limit){
-                  bone[action][axis] += speed;
-                  bone[action][axis] = Math.min(bone[action][axis], limit);
-                  i++;
-              }
-              else if(sign === "-" && bone[action][axis] > limit){
-                  bone[action][axis] -= speed;
-                  bone[action][axis] = Math.max(bone[action][axis], limit);
-                  i++;
-              }
-              else{
-                  ref.animations[0].splice(i, 1);
-              }
-            }
-          }
-        }
-    }
-    else {
-      ref.flag = true;
-      setTimeout(() => {
-        ref.flag = false
-      }, pause);
-      ref.animations.shift();
-    }
-    
-    // Null safety check before rendering
-    if (ref.renderer && ref.scene && ref.camera) {
-      ref.renderer.render(ref.scene, ref.camera);
-    }
-  }
+  // Use custom hooks for Three.js scene and animation engine
+  const ref = useThreeScene(bot, 'canvas');
+  
+  // Callback for text updates during animations
+  const handleTextUpdate = (newText) => {
+    setText(prevText => prevText + newText);
+  };
+  
+  useAnimationEngine(ref, speed, pause, handleTextUpdate);
 
   const sign = (inputRef) => {
+    const str = inputRef.current.value;
+    setText(''); // Clear text before starting new animation
     
-    var str = inputRef.current.value.toUpperCase();
-    var strWords = str.split(' ');
-    setText('')
-
-    for(let word of strWords){
-      if(words[word]){
-        ref.animations.push(['add-text', word+' ']);
-        words[word](ref);
-        
-      }
-      else{
-        for(const [index, ch] of word.split('').entries()){
-          if(index === word.length-1)
-            ref.animations.push(['add-text', ch+' ']);
-          else 
-            ref.animations.push(['add-text', ch]);
-          alphabets[ch](ref);
-          
-        }
-      }
+    try {
+      playString(ref, str, true);
+    } catch (error) {
+      console.error('Animation error:', error.message);
+      alert(error.message);
     }
   }
 

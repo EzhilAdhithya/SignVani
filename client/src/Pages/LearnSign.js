@@ -1,5 +1,5 @@
 import '../App.css'
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import Slider from 'react-input-slider';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'font-awesome/css/font-awesome.min.css';
@@ -11,155 +11,31 @@ import ybotPic from '../Models/ybot/ybot.png';
 
 import * as words from '../Animations/words';
 import * as alphabets from '../Animations/alphabets';
-import { defaultPose } from '../Animations/defaultPose';
+import { playAnimation, playWord } from '../Animations/animationPlayer';
 
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-
-import { disposeThreeResources } from '../Utils/threeCleanup';
-import { validateBoneAction } from '../Utils/threeHelpers';
+import { useThreeScene } from '../Hooks/useThreeScene';
+import { useAnimationEngine } from '../Hooks/useAnimationEngine';
 
 function LearnSign() {
   const [bot, setBot] = useState(ybot);
   const [speed, setSpeed] = useState(0.1);
   const [pause, setPause] = useState(800);
 
-  const componentRef = useRef({});
-  const { current: ref } = componentRef;
-
-  useEffect(() => {
-
-    ref.flag = false;
-    ref.pending = false;
-
-    ref.animations = [];
-    ref.characters = [];
-
-    ref.scene = new THREE.Scene();
-    ref.scene.background = new THREE.Color(0xdddddd);
-
-    const spotLight = new THREE.SpotLight(0xffffff, 2);
-    spotLight.position.set(0, 5, 5);
-    ref.scene.add(spotLight);
-
-    ref.camera = new THREE.PerspectiveCamera(
-        30,
-        window.innerWidth*0.57 / (window.innerHeight - 70),
-        0.1,
-        1000
-    )
-
-    // Optimized renderer settings for Raspberry Pi performance
-    ref.renderer = new THREE.WebGLRenderer({ 
-      antialias: false,  // Disabled for better performance on Pi
-      powerPreference: 'low-power',  // Critical for Raspberry Pi
-      precision: 'mediump'  // Use medium precision for better performance
-    });
-    ref.renderer.setPixelRatio(1);  // Force 1:1 pixel ratio for Pi performance
-    ref.renderer.setSize(window.innerWidth * 0.57, (window.innerHeight - 70));
-    document.getElementById("canvas").innerHTML = "";
-    document.getElementById("canvas").appendChild(ref.renderer.domElement);
-
-    ref.camera.position.z = 1.6;
-    ref.camera.position.y = 1.4;
-
-    let loader = new GLTFLoader();
-    loader.load(
-      bot,
-      (gltf) => {
-        gltf.scene.traverse((child) => {
-          if ( child.type === 'SkinnedMesh' ) {
-            child.frustumCulled = false;
-            // Disable shadows for better Raspberry Pi performance
-            child.castShadow = false;
-            child.receiveShadow = false;
-          }
-        });
-        ref.avatar = gltf.scene;
-        ref.scene.add(ref.avatar);
-        defaultPose(ref);
-      },
-      (xhr) => {
-        console.log(`Model loading: ${Math.round((xhr.loaded / xhr.total) * 100)}%`);
-      },
-      (error) => {
-        console.error('Error loading model:', error);
-      }
-    );
-
-    // Cleanup function to prevent memory leaks
-    return () => {
-      disposeThreeResources(ref);
-    };
-  }, [ref, bot]);
-
-  ref.animate = () => {
-    if(ref.animations.length === 0){
-        ref.pending = false;
-      return ;
-    }
-    
-    // Store animation frame ID for proper cleanup
-    ref.animationFrameId = requestAnimationFrame(ref.animate);
-    
-    if(ref.animations[0].length){
-        if(!ref.flag) {
-          for(let i=0;i<ref.animations[0].length;){
-            let [boneName, action, axis, limit, sign] = ref.animations[0][i]
-            
-            // Null safety check: ensure avatar and bone exist
-            if (!ref.avatar) {
-              ref.animations[0].splice(i, 1);
-              continue;
-            }
-            
-            const bone = ref.avatar.getObjectByName(boneName);
-            if (!bone || !validateBoneAction(bone, action, axis)) {
-              // Remove invalid animation and continue
-              ref.animations[0].splice(i, 1);
-              continue;
-            }
-            
-            if(sign === "+" && bone[action][axis] < limit){
-                bone[action][axis] += speed;
-                bone[action][axis] = Math.min(bone[action][axis], limit);
-                i++;
-            }
-            else if(sign === "-" && bone[action][axis] > limit){
-                bone[action][axis] -= speed;
-                bone[action][axis] = Math.max(bone[action][axis], limit);
-                i++;
-            }
-            else{
-                ref.animations[0].splice(i, 1);
-            }
-          }
-        }
-    }
-    else {
-      ref.flag = true;
-      setTimeout(() => {
-        ref.flag = false
-      }, pause);
-      ref.animations.shift();
-    }
-    
-    // Null safety check before rendering
-    if (ref.renderer && ref.scene && ref.camera) {
-      ref.renderer.render(ref.scene, ref.camera);
-    }
-  }
+  // Use custom hooks for Three.js scene and animation engine
+  const ref = useThreeScene(bot, 'canvas');
+  useAnimationEngine(ref, speed, pause);
 
   let alphaButtons = [];
   for (let i = 0; i < 26; i++) {
+    const letter = String.fromCharCode(i + 65);
     alphaButtons.push(
-        <div className='col-md-3'>
+        <div className='col-md-3' key={`alpha-${letter}`}>
             <button className='signs w-100' onClick={()=>{
               if(ref.animations.length === 0){
-                alphabets[String.fromCharCode(i + 65)](ref);
+                playAnimation(ref, letter);
               }
             }}>
-                {String.fromCharCode(i + 65)}
+                {letter}
             </button>
         </div>
     );
@@ -167,14 +43,15 @@ function LearnSign() {
 
   let wordButtons = [];
   for (let i = 0; i < words.wordList.length; i++) {
+    const word = words.wordList[i];
     wordButtons.push(
-        <div className='col-md-4'>
+        <div className='col-md-4' key={`word-${word}`}>
             <button className='signs w-100' onClick={()=>{
               if(ref.animations.length === 0){
-                words[words.wordList[i]](ref);
+                playWord(ref, word);
               }
             }}>
-                {words.wordList[i]}
+                {word}
             </button>
         </div>
     );
