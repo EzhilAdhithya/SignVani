@@ -70,7 +70,7 @@ class TextProcessor:
         Steps:
         1. Lowercase and clean
         2. Tokenize
-        3. Remove punctuation
+        3. Handle punctuation (preserve periods as special tokens)
         4. POS Tagging
         5. Lemmatization (optional)
 
@@ -86,24 +86,34 @@ class TextProcessor:
         # 1. Lowercase
         text = text.lower().strip()
 
-        # 2. Tokenize
+        # 2. Replace periods with special tokens before tokenization
+        text = text.replace('.', ' <PERIOD> ')
+        text = text.replace('?', ' <QUESTION> ')
+        text = text.replace('!', ' <EXCLAMATION> ')
+        text = text.replace(',', ' <COMMA> ')
+
+        # 3. Tokenize
         try:
             tokens = nltk.word_tokenize(text)
         except LookupError:
             # Fallback if punkt is missing
             tokens = text.split()
 
-        # 3. Remove punctuation and filter empty tokens
+        # 4. Handle punctuation tokens and filter empty tokens
         clean_tokens = []
         for token in tokens:
-            # Remove punctuation from token
-            token = token.translate(self.punctuation_map)
-            if token and len(token) >= NLPConfig.MIN_TOKEN_LENGTH:
-                clean_tokens.append(token)
+            # Check if it's a special punctuation token
+            if token in ['<period>', '<question>', '<exclamation>', '<comma>']:
+                clean_tokens.append(token.upper().replace('<', '').replace('>', ''))
+            else:
+                # Remove regular punctuation from token
+                token = token.translate(self.punctuation_map)
+                if token and len(token) >= NLPConfig.MIN_TOKEN_LENGTH:
+                    clean_tokens.append(token)
 
         tokens = clean_tokens
 
-        # 4. POS Tagging
+        # 5. POS Tagging
         # Uses averaged_perceptron_tagger (included in NLTK default)
         try:
             tagged_tokens = nltk.pos_tag(tokens)
@@ -112,16 +122,20 @@ class TextProcessor:
             logger.warning("POS tagger missing, using default tags")
             tagged_tokens = [(t, 'NN') for t in tokens]
 
-        # 5. Lemmatization
+        # 6. Lemmatization
         if self.lemmatizer:
             final_tagged = []
             for token, tag in tagged_tokens:
-                wordnet_tag = self._get_wordnet_pos(tag)
-                if wordnet_tag:
-                    lemma = self.lemmatizer.lemmatize(token, wordnet_tag)
+                # Skip lemmatization for punctuation tokens
+                if token in ['PERIOD', 'QUESTION', 'EXCLAMATION', 'COMMA']:
+                    final_tagged.append((token, tag))
                 else:
-                    lemma = self.lemmatizer.lemmatize(token)
-                final_tagged.append((lemma, tag))
+                    wordnet_tag = self._get_wordnet_pos(tag)
+                    if wordnet_tag:
+                        lemma = self.lemmatizer.lemmatize(token, wordnet_tag)
+                    else:
+                        lemma = self.lemmatizer.lemmatize(token)
+                    final_tagged.append((lemma, tag))
             tagged_tokens = final_tagged
             tokens = [t[0] for t in tagged_tokens]
 

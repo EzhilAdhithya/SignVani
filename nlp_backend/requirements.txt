@@ -1,11 +1,17 @@
 # SignVani Production Dependencies
 # Compatible with Python 3.12+
 
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
 # Speech Recognition (Offline)
 vosk==0.3.45
 
 # Audio Processing
 PyAudio==0.2.14
+soundfile==0.12.1
 
 # Numerical Computing (wheels available for Python 3.12)
 numpy>=1.26.0

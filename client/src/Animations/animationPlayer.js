@@ -98,10 +98,10 @@ export const playString = (ref, inputString, addTextMarkers = true) => {
     return false;
   }
   
-  // Validate input contains only letters and spaces
+  // Validate input contains only letters, spaces, and basic punctuation
   if (!validateInput(inputString)) {
     throw new Error(
-      'Input contains invalid characters. Only letters (A-Z) and spaces are allowed.'
+      'Input contains invalid characters. Only letters (A-Z), spaces, and basic punctuation (. , ! ?) are allowed.'
     );
   }
   
@@ -165,7 +165,7 @@ export const playString = (ref, inputString, addTextMarkers = true) => {
  * @returns {boolean} - True if valid
  */
 export const validateInput = (inputString) => {
-  const validCharacters = /^[A-Za-z\s]*$/;
+  const validCharacters = /^[A-Za-z\s.,!?]*$/;
   return validCharacters.test(inputString);
 };
 
