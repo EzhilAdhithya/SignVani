@@ -1,5 +1,6 @@
 import * as alphabets from './alphabets';
 import * as words from './words';
+import { getWordAnimation } from './words';
 
 /**
  * Animation Player - Centralized animation playback utility
@@ -59,14 +60,15 @@ export const playWord = (ref, word) => {
     return false;
   }
   
-  // Check if word animation exists
-  if (!words[upperWord]) {
+  // Check if word animation exists (named export or dynamic lookup)
+  const wordAnim = words[upperWord] || getWordAnimation(upperWord);
+  if (!wordAnim) {
     console.warn(`No animation found for word: ${upperWord}`);
     return false;
   }
   
   // Execute word animation function
-  words[upperWord](ref);
+  wordAnim(ref);
   
   // Start animation if not already running
   if (ref.animate && ref.pending === false && ref.animations.length > 0) {
@@ -119,15 +121,16 @@ export const playString = (ref, inputString, addTextMarkers = true) => {
     // Skip empty strings from multiple spaces
     if (word.length === 0) continue;
     
-    // Try to play as a complete word animation first
-    if (words[word]) {
+    // Try to play as a complete word animation first (named export or dynamic lookup)
+    const wordAnim = words[word] || getWordAnimation(word);
+    if (wordAnim) {
       if (addTextMarkers) {
         ref.animations.push(['add-text', word + ' ']);
       }
-      words[word](ref);
+      wordAnim(ref);
       animationsQueued = true;
     } 
-    // Fall back to letter-by-letter animation
+    // Fall back to letter-by-letter fingerspelling
     else {
       for (const [index, ch] of word.split('').entries()) {
         // Add text marker for each letter

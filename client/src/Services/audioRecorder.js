@@ -140,28 +140,82 @@ class AudioRecorder {
   }
 
   /**
-   * Convert WebM blob to WAV format
-   * @param {Blob} webmBlob - WebM audio blob
-   * @returns {Promise<Blob>} - WAV audio blob
+   * Convert WebM/Opus blob to 16-bit mono WAV using the Web Audio API.
+   * The Vosk ASR engine on the backend requires standard WAV (PCM) input.
+   * @param {Blob} audioBlob - Recorded audio blob (WebM or other browser format)
+   * @returns {Promise<Blob>} - 16-bit mono WAV blob at the original sample rate
    */
-  async convertToWav(webmBlob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = async () => {
-        try {
-          // For now, we'll send the WebM blob directly
-          // In a production environment, you might want to convert to WAV
-          // using Web Audio API or a library like lamejs
-          resolve(webmBlob);
-        } catch (error) {
-          reject(error);
+  async convertToWav(audioBlob) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) {
+      console.warn('Web Audio API not supported; sending raw audio to backend');
+      return audioBlob;
+    }
+
+    const audioContext = new AudioContext();
+    try {
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Mix down to mono by averaging all channels
+      const numChannels = audioBuffer.numberOfChannels;
+      const numSamples = audioBuffer.length;
+      const sampleRate = audioBuffer.sampleRate;
+      const monoSamples = new Float32Array(numSamples);
+
+      for (let ch = 0; ch < numChannels; ch++) {
+        const channelData = audioBuffer.getChannelData(ch);
+        for (let i = 0; i < numSamples; i++) {
+          monoSamples[i] += channelData[i];
+        }
+      }
+      if (numChannels > 1) {
+        for (let i = 0; i < numSamples; i++) {
+          monoSamples[i] /= numChannels;
+        }
+      }
+
+      // Encode as 16-bit PCM WAV
+      const bitDepth = 16;
+      const bytesPerSample = bitDepth / 8;
+      const dataLength = numSamples * bytesPerSample;
+      const wavBuffer = new ArrayBuffer(44 + dataLength);
+      const view = new DataView(wavBuffer);
+
+      const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
         }
       };
-      
-      reader.onerror = () => reject(new Error('Failed to read audio blob'));
-      reader.readAsArrayBuffer(webmBlob);
-    });
+
+      // RIFF header
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataLength, true);
+      writeString(8, 'WAVE');
+      // fmt  chunk
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);          // chunk size
+      view.setUint16(20, 1, true);           // PCM format
+      view.setUint16(22, 1, true);           // mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+      view.setUint16(32, bytesPerSample, true);              // block align
+      view.setUint16(34, bitDepth, true);
+      // data chunk
+      writeString(36, 'data');
+      view.setUint32(40, dataLength, true);
+
+      // Write 16-bit PCM samples
+      let offset = 44;
+      for (let i = 0; i < numSamples; i++, offset += 2) {
+        const clamped = Math.max(-1, Math.min(1, monoSamples[i]));
+        view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
+      }
+
+      return new Blob([wavBuffer], { type: 'audio/wav' });
+    } finally {
+      audioContext.close();
+    }
   }
 
   /**

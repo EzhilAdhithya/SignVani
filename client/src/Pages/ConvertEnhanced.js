@@ -112,16 +112,24 @@ function Convert() {
       setTranscript(result.original_text || '');
       setCurrentGloss(result.gloss || '');
       setCurrentHamNoSys(result.hamnosys || []);
-      
-      // Update processing message
+      setText('');
+
       setProcessingMessage('Playing animation...');
-      
-      // Animation is already played by the audio recorder
-      // Just update the UI here
-      
+
+      // Play animation using the ISL gloss (SOV order) from the backend
+      if (animationPlayerRef.current && result.glosses && result.glosses.length > 0) {
+        const glossText = result.glosses.join(' ');
+        await animationPlayerRef.current._playTraditionalAnimation(glossText);
+      } else if (animationPlayerRef.current && result.original_text) {
+        // Fallback: play original transcript if no glosses returned
+        await animationPlayerRef.current._playTraditionalAnimation(result.original_text);
+      }
+
     } catch (error) {
       console.error('Error handling speech result:', error);
       handleError('Failed to process speech result');
+    } finally {
+      setProcessingMessage('');
     }
   };
 

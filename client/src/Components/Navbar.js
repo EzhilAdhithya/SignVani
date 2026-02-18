@@ -16,7 +16,7 @@ function Navbar() {
                 <div className="collapse navbar-collapse" id="navbarResponsive">
                     <ul className="navbar-nav ms-auto my-2 my-lg-0">
                         <li className="nav-item"><Link to='/sign-kit/home' className="nav-link active">Home</Link></li>
-                        <li className="nav-item"><Link to='/sign-kit/convert' className="nav-link">Convert</Link></li>
+                        <li className="nav-item"><Link to='/sign-kit/convert-enhanced' className="nav-link">Convert</Link></li>
                         <li className="nav-item"><Link to='/sign-kit/learn-sign' className="nav-link">Learn Sign</Link></li>
                         <li className="nav-item"><Link to='/sign-kit/all-videos' className="nav-link">Videos</Link></li>
                         <li className="nav-item"><Link to='/sign-kit/feedback' className="nav-link">Feedback</Link></li>

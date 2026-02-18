@@ -5,6 +5,7 @@
 
 import * as alphabets from '../Animations/alphabets';
 import * as words from '../Animations/words';
+import { getWordAnimation } from '../Animations/words';
 import apiService from './apiService';
 
 class EnhancedAnimationPlayer {
@@ -36,9 +37,12 @@ class EnhancedAnimationPlayer {
       this.currentHamNoSys = result.hamnosys || [];
       this.currentSiGML = result.sigml;
 
-      // For now, fall back to traditional animation
-      // In a full implementation, you would render HamNoSys codes
-      await this._playTraditionalAnimation(text);
+      // Animate using the ISL gloss (SOV word order) from the backend.
+      // Fall back to the original text only if the backend returned no glosses.
+      const glossText = (result.glosses && result.glosses.length > 0)
+        ? result.glosses.join(' ')
+        : text;
+      await this._playTraditionalAnimation(glossText);
 
       return result;
 
@@ -72,9 +76,12 @@ class EnhancedAnimationPlayer {
 
       if (onProgress) onProgress({ stage: 'complete', message: 'Ready to play!' });
 
-      // For now, play the original text using traditional animation
-      // In a full implementation, you would use the HamNoSys codes
-      await this._playTraditionalAnimation(result.original_text);
+      // Animate using the ISL gloss (SOV word order) from the backend.
+      // Fall back to the original transcript only if no glosses were returned.
+      const glossText = (result.glosses && result.glosses.length > 0)
+        ? result.glosses.join(' ')
+        : result.original_text;
+      await this._playTraditionalAnimation(glossText);
 
       return result;
 
@@ -119,13 +126,14 @@ class EnhancedAnimationPlayer {
     for (const word of wordArray) {
       if (word.length === 0) continue;
 
-      // Try word animation first
-      if (words[word]) {
+      // Try word animation first (named export or dynamic lookup)
+      const wordAnim = words[word] || getWordAnimation(word);
+      if (wordAnim) {
         this.ref.animations.push(['add-text', word + ' ']);
-        words[word](this.ref);
+        wordAnim(this.ref);
         animationsQueued = true;
       } else {
-        // Fall back to letter-by-letter
+        // Fall back to letter-by-letter fingerspelling
         for (const [index, ch] of word.split('').entries()) {
           if (index === word.length - 1) {
             this.ref.animations.push(['add-text', ch + ' ']);
@@ -242,12 +250,13 @@ export const playWord = (ref, word) => {
     return false;
   }
   
-  if (!words[upperWord]) {
+  const wordAnim = words[upperWord] || getWordAnimation(upperWord);
+  if (!wordAnim) {
     console.warn(`No animation found for word: ${upperWord}`);
     return false;
   }
   
-  words[upperWord](ref);
+  wordAnim(ref);
   
   if (ref.animate && ref.pending === false && ref.animations.length > 0) {
     ref.pending = true;
