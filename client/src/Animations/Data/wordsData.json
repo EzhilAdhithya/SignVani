@@ -2288,7 +2288,267 @@
       }
     ]
   },
-
+  "ANGRY": {
+    "description": "Fingers clawed, moving from stomach up to chest",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightHandIndex1", "rotation", "z", "Math.PI/4", "+"],
+          ["mixamorigRightHandMiddle1", "rotation", "z", "Math.PI/4", "+"],
+          ["mixamorigRightHandRing1", "rotation", "z", "Math.PI/4", "+"],
+          ["mixamorigRightHandPinky1", "rotation", "z", "Math.PI/4", "+"],
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/6", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/3", "-"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "0", "+"],
+          ["mixamorigRightForeArm", "rotation", "z", "0", "-"]
+        ]
+      }
+    ]
+  },
+  "SCARED": {
+    "description": "Both hands open, palms facing body, shaking near chest",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/4", "-"],
+          ["mixamorigLeftArm", "rotation", "x", "-Math.PI/4", "-"],
+          ["mixamorigRightHand", "rotation", "y", "-Math.PI/2", "-"],
+          ["mixamorigLeftHand", "rotation", "y", "Math.PI/2", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightHand", "rotation", "z", "Math.PI/12", "+"],
+          ["mixamorigLeftHand", "rotation", "z", "-Math.PI/12", "-"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightHand", "rotation", "z", "-Math.PI/12", "-"],
+          ["mixamorigLeftHand", "rotation", "z", "Math.PI/12", "+"]
+        ]
+      }
+    ]
+  },
+  "HUNGRY": {
+    "description": "Right hand rubbing stomach in a circle",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/8", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/4", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "y", "Math.PI/8", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "y", "-Math.PI/8", "-"]
+        ]
+      }
+    ]
+  },
+  "THIRSTY": {
+    "description": "Index finger running down the throat",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightHandMiddle1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandRing1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandPinky1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/2", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/3", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/3", "+"]
+        ]
+      }
+    ]
+  },
+  "BORED": {
+    "description": "Index finger twisting at the cheek",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightHandMiddle1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/2", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/2.5", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightHand", "rotation", "y", "Math.PI/6", "+"]
+        ]
+      }
+    ]
+  },
+  "EXCITED": {
+    "description": "Middle fingers brushing up chest alternately",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/4", "-"],
+          ["mixamorigLeftArm", "rotation", "x", "-Math.PI/6", "-"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/6", "+"],
+          ["mixamorigLeftArm", "rotation", "x", "-Math.PI/4", "-"]
+        ]
+      }
+    ]
+  },
+  "LEFT": {
+    "description": "Index finger pointing left",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightHandMiddle1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandRing1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandPinky1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightArm", "rotation", "y", "Math.PI/4", "+"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/6", "+"]
+        ]
+      }
+    ]
+  },
+  "RIGHT": {
+    "description": "Index finger pointing right",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightHandMiddle1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandRing1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandPinky1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightArm", "rotation", "y", "-Math.PI/4", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/6", "+"]
+        ]
+      }
+    ]
+  },
+  "UP": {
+    "description": "Index finger pointing up",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/2", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/2", "+"]
+        ]
+      }
+    ]
+  },
+  "DOWN": {
+    "description": "Index finger pointing down",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/12", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/12", "+"],
+          ["mixamorigRightHand", "rotation", "x", "Math.PI/2", "+"]
+        ]
+      }
+    ]
+  },
+  "NEAR": {
+    "description": "Two flat hands moving close together",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigLeftArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigRightArm", "rotation", "y", "Math.PI/6", "+"],
+          ["mixamorigLeftArm", "rotation", "y", "-Math.PI/6", "-"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "y", "Math.PI/12", "-"],
+          ["mixamorigLeftArm", "rotation", "y", "-Math.PI/12", "+"]
+        ]
+      }
+    ]
+  },
+  "FAR": {
+    "description": "Dominant hand moving far forward",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/6", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/2", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/4", "+"]
+        ]
+      }
+    ]
+  },
+  "FRONT": {
+    "description": "Flat hand moving forward from chest",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/4", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/3", "-"]
+        ]
+      }
+    ]
+  },
+  "BACK": {
+    "description": "Thumb pointing back over the shoulder",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigRightHandIndex1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandMiddle1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandRing1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightHandPinky1", "rotation", "z", "Math.PI/2", "+"],
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/2", "-"],
+          ["mixamorigRightArm", "rotation", "y", "-Math.PI/4", "-"]
+        ]
+      }
+    ]
+  },
+  "INSIDE": {
+    "description": "Right hand fingers move into a cup formed by left hand",
+    "keyframes": [
+      {
+        "transformations": [
+          ["mixamorigLeftArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigLeftForeArm", "rotation", "z", "-Math.PI/6", "-"],
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/6", "-"],
+          ["mixamorigRightForeArm", "rotation", "z", "Math.PI/6", "+"]
+        ]
+      },
+      {
+        "transformations": [
+          ["mixamorigRightArm", "rotation", "x", "-Math.PI/4", "-"]
+        ]
+      }
+    ]
+  },
     "WHAT": {
     "description": "Dominant index finger shaking side to side",
     "keyframes": [
