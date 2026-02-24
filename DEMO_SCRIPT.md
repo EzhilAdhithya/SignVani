@@ -56,7 +56,7 @@ SignVani converts spoken and written English into animated ISL gestures on a liv
 "Ten categories, 48 common words. Watch the handshapes change."
 
 `[ACTION → switch to Beginner preset]`
-"Beginner mode slows everything down so learners can follow each handshape clearly."
+"Beginner mode slows everything down so learners can follow each ha  ndshape clearly."
 
 ---
 

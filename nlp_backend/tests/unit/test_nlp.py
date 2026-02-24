@@ -114,13 +114,16 @@ class TestTenseDetection(unittest.TestCase):
         self.assertEqual(glosses, ["I", "RICE", "EAT"])
 
     def test_tense_with_time_word(self):
-        # "Yesterday I was playing" — PAST before time word YESTERDAY
+        # "Yesterday I was playing" — "yesterday" encodes past tense on its own,
+        # so the explicit PAST marker is suppressed (ISL convention: time words
+        # that already imply tense make a separate tense marker redundant).
+        # Expected: YESTERDAY I PLAY  (no PAST prefix)
         tagged = [("yesterday", "RB"), ("i", "PRP"),
                   ("was", "VBD"), ("play", "VBG")]
         glosses, meta = self.transformer.transform(self._make(tagged))
         self.assertEqual(meta.tense, "PAST")
-        self.assertEqual(glosses[0], "PAST")
-        self.assertEqual(glosses[1], "YESTERDAY")
+        self.assertEqual(glosses[0], "YESTERDAY")
+        self.assertNotIn("PAST", glosses)
 
 
 class TestNegation(unittest.TestCase):

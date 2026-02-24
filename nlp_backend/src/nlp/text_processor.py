@@ -88,11 +88,13 @@ class TextProcessor:
         Process raw text into tokens and POS tags.
 
         Steps:
-        1. Lowercase and clean
-        2. Tokenize
-        3. Handle punctuation (preserve periods as special tokens)
-        4. POS Tagging
-        5. Lemmatization (optional)
+        1. Expand contractions
+        2. Replace punctuation with sentinel tokens
+        3. Tokenize (on original-cased text)
+        4. Filter tokens
+        5. POS Tagging (on original-cased tokens — preserves accuracy for "I" etc.)
+        6. Lowercase all tokens
+        7. Lemmatization (optional)
 
         Args:
             text: Raw input text (e.g., "The cat is eating.")
@@ -109,29 +111,28 @@ class TextProcessor:
         # 1. Expand contractions (before lowercasing so patterns match any case)
         text = self._expand_contractions(text)
 
-        # 2. Lowercase
-        text = text.lower().strip()
-
-        # 3. Replace periods with special tokens before tokenization
+        # 2. Replace periods with special tokens before tokenization
+        #    (done on original-cased text so POS tagging sees proper capitalisation)
         text = text.replace('.', ' <PERIOD> ')
         text = text.replace('?', ' <QUESTION> ')
         text = text.replace('!', ' <EXCLAMATION> ')
         text = text.replace(',', ' <COMMA> ')
 
-        # 4. Tokenize
+        # 3. Tokenize (on original-cased text for accurate POS tagging)
         try:
             tokens = nltk.word_tokenize(text)
         except LookupError:
             # Fallback if punkt is missing
             tokens = text.split()
 
-        # 5. Handle punctuation tokens and filter empty tokens
+        # 4. Handle punctuation tokens and filter empty tokens
         clean_tokens = []
         for token in tokens:
-            # Check if it's a special punctuation token
-            if token in ['<period>', '<question>', '<exclamation>', '<comma>']:
+            token_lower = token.lower()
+            # Check if it's a special punctuation token (case-insensitive match)
+            if token_lower in ['<period>', '<question>', '<exclamation>', '<comma>']:
                 clean_tokens.append(
-                    token.upper().replace('<', '').replace('>', ''))
+                    token_lower.upper().replace('<', '').replace('>', ''))
             else:
                 # Remove regular punctuation from token
                 token = token.translate(self.punctuation_map)
@@ -140,8 +141,10 @@ class TextProcessor:
 
         tokens = clean_tokens
 
-        # 6. POS Tagging
-        # Uses averaged_perceptron_tagger (included in NLTK default)
+        # 5. POS Tagging on original-cased tokens.
+        #    NLTK's tagger is case-sensitive: "I" is correctly tagged as PRP
+        #    (personal pronoun) while lowercase "i" is often mistagged as NN,
+        #    which in turn causes subsequent verbs to receive wrong tense tags.
         try:
             tagged_tokens = nltk.pos_tag(tokens)
         except LookupError:
@@ -149,12 +152,16 @@ class TextProcessor:
             logger.warning("POS tagger missing, using default tags")
             tagged_tokens = [(t, 'NN') for t in tokens]
 
+        # 6. Lowercase AFTER POS tagging so downstream logic uses lower-case strings
+        tagged_tokens = [(token.lower(), tag) for token, tag in tagged_tokens]
+        tokens = [t[0] for t in tagged_tokens]
+
         # 7. Lemmatization
         if self.lemmatizer:
             final_tagged = []
             for token, tag in tagged_tokens:
-                # Skip lemmatization for punctuation tokens
-                if token in ['PERIOD', 'QUESTION', 'EXCLAMATION', 'COMMA']:
+                # Skip lemmatization for punctuation tokens (now stored lowercase)
+                if token in ['period', 'question', 'exclamation', 'comma']:
                     final_tagged.append((token, tag))
                 else:
                     wordnet_tag = self._get_wordnet_pos(tag)
