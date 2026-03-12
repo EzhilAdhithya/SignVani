@@ -3,6 +3,7 @@
 # SignVani
 
 ### Offline Speech-to-Indian Sign Language Translator
+
 ### Optimised for Raspberry Pi 4B
 
 **Vani** (Sanskrit: वाणी) — *voice, speech*
@@ -63,71 +64,86 @@ SignVani is purpose-built and tuned for the Raspberry Pi 4B. All design decision
 ## System Architecture
 
 ```mermaid
-graph TD
-    User(["👤 User"])
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#E8F0FE', 'primaryTextColor': '#102A43', 'primaryBorderColor': '#1D4ED8', 'lineColor': '#4B5563', 'secondaryColor': '#E8FFF7', 'tertiaryColor': '#FFF6E5', 'clusterBkg': '#F8FAFC', 'clusterBorder': '#CBD5E1', 'fontFamily': 'Inter, Segoe UI, Arial' }}}%%
+flowchart LR
+    User[User]
 
-    subgraph RPi4["Raspberry Pi 4B"]
-        subgraph Browser["Browser — React Client  (port 3000)"]
-            Pages["Pages\nConvert · LearnSign · CreateVideo · Videos"]
-            Services["Service Layer\napiService.js · audioRecorder.js · handsignService.js"]
-            Hooks["Custom Hooks\nuseThreeScene · useAnimationEngine"]
-            Renderer["Three.js WebGL Renderer\nVideoCore VI · mediump · 30 fps"]
-            Avatar["3D Avatar\nMixamo xbot / ybot (.glb)\nSkeletal bone animation"]
-            AnimData["Built-in Animation Data\nwordsData.json (48 words)\nAlphabets/A–Z.js (26 letters)"]
+    subgraph Pi["Raspberry Pi 4B"]
+        direction LR
+
+        subgraph Client["Browser Client · React · Port 3000"]
+            direction TB
+            Pages["Pages<br/>Convert · LearnSign · CreateVideo · Videos"]
+            Services["Service Layer<br/>apiService.js · audioRecorder.js · handsignService.js"]
+            Hooks["Custom Hooks<br/>useThreeScene · useAnimationEngine"]
+            Renderer["Three.js Renderer<br/>WebGL · mediump · 30 fps"]
+            Avatar["3D Avatar<br/>Mixamo rig · skeletal animation"]
+            Assets["Built-in Sign Assets<br/>wordsData.json · Alphabets A-Z"]
         end
 
-        subgraph Backend["NLP Backend — FastAPI  (port 8000)"]
-            API["FastAPI + GZip\napi_server.py"]
+        subgraph Backend["NLP Backend · FastAPI · Port 8000"]
+            direction TB
+            API["API Layer<br/>FastAPI · GZip · api_server.py"]
 
-            subgraph AudioPipeline["Real-time Audio Pipeline"]
-                PyAudio["PyAudio\nCallback stream\n16kHz · 1024 frames"]
-                VAD["Voice Activity Detector\nRMS energy threshold"]
-                NoiseFilter["Spectral Subtractor\nFFT-512 · Hann window"]
-                CircBuf["Circular Audio Buffer\n~160 KB bounded queue"]
+            subgraph Audio["Audio Ingestion"]
+                direction LR
+                Capture["PyAudio Capture<br/>16 kHz · callback stream"]
+                VAD["Voice Activity Detection<br/>RMS thresholding"]
+                Filter["Noise Reduction<br/>FFT-512 spectral subtraction"]
+                Buffer["Circular Buffer<br/>bounded in-memory queue"]
             end
 
-            subgraph ASR["ASR Engine (selectable via ASR_ENGINE)"]
-                WhisperASR["faster-whisper · default\ntiny.en · int8 · CTranslate2\n~39 MB · warmup on startup"]
-                VoskASR["Vosk ASR · fallback\nvosk-model-small-en-in-0.4\n~40 MB · Indian English"]
+            subgraph ASR["Speech Recognition"]
+                direction LR
+                Whisper["faster-whisper<br/>tiny.en · int8 · default"]
+                Vosk["Vosk<br/>small-en-in-0.4 · fallback"]
             end
 
-            subgraph NLP["NLP Pipeline"]
-                TextProc["TextProcessor\nNLTK tokenise · POS tag · lemmatise"]
-                GrammarT["GrammarTransformer\nSVO → SOV · tense · negation"]
-                GlossMap["GlossMapper\nEnglish lemma → ISL gloss"]
+            subgraph NLP["Language Processing"]
+                direction LR
+                Text["Text Processor<br/>tokenise · POS tag · lemmatise"]
+                Grammar["Grammar Transformer<br/>SVO → SOV · tense · negation"]
+                Gloss["Gloss Mapper<br/>English lemma → ISL gloss"]
             end
 
-            subgraph DB["Database Layer"]
-                SQLite["SQLite + FTS5\ngloss_mapping · unknown_words\nmmap 64 MB · temp_store MEMORY"]
-                LRUCache["LRU Cache\n200 entries"]
-            end
-
-            subgraph SiGML["Output Generators"]
-                SiGMLGen["SiGML Generator\nHamNoSys → SiGML XML"]
-                KeyframeGen["Handsign Generator\nHamNoSys → Three.js keyframes"]
+            subgraph Data["Lookup and Generation"]
+                direction LR
+                Cache["LRU Cache<br/>200 entries"]
+                DB["SQLite + FTS5<br/>gloss mapping · HamNoSys data"]
+                Keyframes["Handsign Generator<br/>HamNoSys → Three.js keyframes"]
+                SiGML["SiGML Generator<br/>HamNoSys → SiGML XML"]
             end
         end
     end
 
-    User -->|"text / speech"| Pages
-    Pages --> Services
-    Services -->|"POST /api/text-to-handsign\nPOST /api/speech-to-handsign"| API
-    API --> AudioPipeline
-    API --> NLP
-    PyAudio --> VAD --> NoiseFilter --> CircBuf --> WhisperASR
-    PyAudio --> VAD --> NoiseFilter --> CircBuf --> VoskASR
-    WhisperASR -->|"transcript"| TextProc
-    VoskASR -->|"transcript"| TextProc
-    TextProc --> GrammarT --> GlossMap
-    GlossMap --> LRUCache --> SQLite
-    SQLite -->|"HamNoSys codes"| SiGMLGen
-    SQLite -->|"HamNoSys codes"| KeyframeGen
-    KeyframeGen -->|"keyframes JSON"| API
-    API -->|"JSON response"| Services
-    Services --> Hooks
-    AnimData --> Hooks
-    Hooks --> Renderer --> Avatar
-    Avatar -->|"signed animation"| User
+    User -->|Text or speech input| Pages
+    Pages --> Services -->|REST requests| API
+    API --> Capture --> VAD --> Filter --> Buffer
+    Buffer --> Whisper
+    Buffer --> Vosk
+    Whisper -->|Transcript| Text
+    Vosk -->|Transcript| Text
+    API --> Text
+    Text --> Grammar --> Gloss --> Cache --> DB
+    DB -->|HamNoSys lookup| Keyframes
+    DB -->|HamNoSys lookup| SiGML
+    Keyframes -->|Animation payload| API
+    API -->|JSON response| Services --> Hooks
+    Assets --> Hooks --> Renderer --> Avatar -->|ISL animation| User
+
+    classDef edge fill:#F8FAFC,stroke:#94A3B8,color:#0F172A;
+    classDef client fill:#EAF2FF,stroke:#2563EB,color:#0F172A;
+    classDef audio fill:#E8FFF7,stroke:#0F766E,color:#0F172A;
+    classDef asr fill:#FFF6E5,stroke:#D97706,color:#0F172A;
+    classDef nlp fill:#F3E8FF,stroke:#7C3AED,color:#0F172A;
+    classDef data fill:#FCE7F3,stroke:#DB2777,color:#0F172A;
+
+    class User edge;
+    class Pages,Services,Hooks,Renderer,Avatar,Assets client;
+    class Capture,VAD,Filter,Buffer audio;
+    class Whisper,Vosk asr;
+    class API,Text,Grammar,Gloss nlp;
+    class Cache,DB,Keyframes,SiGML data;
 ```
 
 ---
@@ -137,69 +153,80 @@ graph TD
 ### Text → Sign (Backend Mode)
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#EAF2FF', 'primaryBorderColor': '#2563EB', 'primaryTextColor': '#102A43', 'secondaryColor': '#E8FFF7', 'tertiaryColor': '#FFF6E5', 'lineColor': '#475569', 'signalColor': '#1D4ED8', 'signalTextColor': '#0F172A', 'actorBorder': '#2563EB', 'actorBkg': '#EAF2FF', 'actorTextColor': '#0F172A', 'activationBorderColor': '#2563EB', 'activationBkgColor': '#DBEAFE', 'noteBkgColor': '#F8FAFC', 'noteBorderColor': '#CBD5E1', 'fontFamily': 'Inter, Segoe UI, Arial' }}}%%
 sequenceDiagram
-    participant U as User
+    autonumber
+    actor U as User
     participant C as React Client
     participant B as FastAPI Backend
     participant N as NLP Pipeline
     participant DB as SQLite + FTS5
 
-    U->>C: Types English text
-    C->>B: POST /api/text-to-handsign {"text": "I am going to the market"}
-    B->>N: Tokenise → POS tag → Lemmatise
-    Note over N: ["I","am","going","to","the","market"]<br/>→ ["I","go","market"]
-    N->>N: SVO → SOV grammar transform
-    Note over N: ["I","go","market"] → ["I","MARKET","GO"]
-    N->>DB: SELECT hamnosys_string WHERE english_gloss IN (...)
-    DB-->>N: HamNoSys codes per gloss
-    N->>B: Generate Three.js bone keyframes
-    B-->>C: {gloss:"I MARKET GO", animations:[...], total_duration:3200}
-    C->>C: Queue keyframes → useAnimationEngine
-    C-->>U: 3D avatar plays ISL signs at 30 fps
+    U->>C: Enter English text
+    C->>B: POST /api/text-to-handsign
+    B->>N: Tokenise, tag, and lemmatise
+    Note over N: I am going to the market<br/>→ I go market
+    N->>N: Reorder to ISL-friendly SOV gloss
+    Note over N: I go market<br/>→ I MARKET GO
+    N->>DB: Lookup HamNoSys codes
+    DB-->>N: Gloss mappings
+    N-->>B: Generate keyframe payload
+    B-->>C: gloss + animations + duration
+    C->>C: Queue animations in useAnimationEngine
+    C-->>U: Render signed output on avatar
 ```
 
 ### Speech → Sign (Real-time Pipeline)
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#E8FFF7', 'primaryBorderColor': '#0F766E', 'primaryTextColor': '#102A43', 'secondaryColor': '#EAF2FF', 'tertiaryColor': '#FFF6E5', 'lineColor': '#475569', 'signalColor': '#0F766E', 'signalTextColor': '#0F172A', 'actorBorder': '#0F766E', 'actorBkg': '#ECFDF5', 'actorTextColor': '#0F172A', 'activationBorderColor': '#0F766E', 'activationBkgColor': '#D1FAE5', 'noteBkgColor': '#F8FAFC', 'noteBorderColor': '#CBD5E1', 'fontFamily': 'Inter, Segoe UI, Arial' }}}%%
 sequenceDiagram
-    participant U as User
+    autonumber
+    actor U as User
     participant C as React Client
     participant B as FastAPI Backend
-    participant A as ASR Engine
+    participant A as Active ASR Engine
     participant N as NLP Pipeline
 
-    U->>C: Clicks Record
-    C->>C: MediaRecorder captures WebM audio
-    C->>C: Web Audio API converts WebM → 16kHz PCM WAV
-    C->>B: POST /api/speech-to-handsign (WAV · multipart)
-    Note over B,A: Engine selected by ASR_ENGINE env var<br/>faster-whisper (default) or Vosk (fallback)
-    B->>A: Normalise WAV → 16kHz mono float32 → transcribe()
-    A-->>B: {text: "hello how are you", confidence: 0.94}
-    B->>N: Same NLP pipeline as text-to-sign
-    B-->>C: {original_text, gloss, animations[], total_duration}
-    C-->>U: Avatar signs the transcribed phrase
+    U->>C: Start recording
+    C->>C: Capture WebM audio
+    C->>C: Convert to 16 kHz mono WAV
+    C->>B: POST /api/speech-to-handsign
+    Note over B,A: ASR_ENGINE selects faster-whisper or Vosk
+    B->>A: Normalise and transcribe audio
+    A-->>B: Transcript with confidence
+    B->>N: Run ISL transformation pipeline
+    N-->>B: Gloss sequence + animation payload
+    B-->>C: original_text + gloss + animations
+    C-->>U: Play signed response in real time
 ```
 
 ### Built-in Animations (No Backend)
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#FFF6E5', 'primaryBorderColor': '#D97706', 'primaryTextColor': '#102A43', 'secondaryColor': '#EAF2FF', 'tertiaryColor': '#E8FFF7', 'lineColor': '#475569', 'signalColor': '#B45309', 'signalTextColor': '#0F172A', 'actorBorder': '#D97706', 'actorBkg': '#FFF7ED', 'actorTextColor': '#0F172A', 'activationBorderColor': '#D97706', 'activationBkgColor': '#FED7AA', 'noteBkgColor': '#F8FAFC', 'noteBorderColor': '#CBD5E1', 'fontFamily': 'Inter, Segoe UI, Arial' }}}%%
 sequenceDiagram
-    participant U as User
+    autonumber
+    actor U as User
     participant AP as animationPlayer.js
     participant WD as wordsData.json
-    participant AZ as Alphabets/A-Z.js
+    participant AZ as Alphabets A-Z
     participant AE as useAnimationEngine
 
     U->>AP: playString("HELLO")
-    AP->>WD: Lookup "HELLO" keyframes
-    WD-->>AP: [{transformations:[["mixamorigRightArm","rotation","z","Math.PI/3","+"],...]}]
-    AP->>AE: Push bone-transform frames to ref.animations[]
-    loop requestAnimationFrame (throttled 30 fps)
-        AE->>AE: Dequeue frame · apply bone[action][axis] += speed
-        AE->>AE: renderer.render(scene, camera)
+    AP->>WD: Lookup word-level keyframes
+    alt Word animation exists
+        WD-->>AP: Return stored bone transforms
+    else Fallback required
+        AP->>AZ: Resolve letter-by-letter signs
+        AZ-->>AP: Alphabet animation frames
     end
-    AE-->>U: Avatar waves
-    AP->>AZ: Fallback: letter-by-letter if word not found
+    AP->>AE: Queue animation frames
+    loop 30 fps render loop
+        AE->>AE: Apply transforms to avatar skeleton
+        AE->>AE: Render scene with Three.js
+    end
+    AE-->>U: Display local signing animation
 ```
 
 ---
@@ -208,45 +235,37 @@ sequenceDiagram
 
 SignVani implements a 7-stage pipeline to transform raw English text into ISL-compatible gloss sequences. ISL follows **Subject-Object-Verb (SOV)** word order, the inverse of English's SVO.
 
-```
-Input: "I am going to the market"
-         │
-         ▼
- ┌─────────────────┐
- │  1. Contraction │  "don't" → "do not"  (14 pre-compiled regex patterns)
- │     Expansion   │
- └────────┬────────┘
-          ▼
- ┌─────────────────┐
- │  2. Tokenisation│  NLTK punkt_tab  →  ["I","am","going","to","the","market"]
- └────────┬────────┘
-          ▼
- ┌─────────────────┐
- │  3. POS Tagging │  [(I,PRP),(am,VBZ),(going,VBG),(to,TO),(the,DT),(market,NN)]
- └────────┬────────┘
-          ▼
- ┌─────────────────┐
- │  4. Lemmatisation│  VBG→VB: "going"→"go"  (WordNet lemmatiser)
- └────────┬────────┘
-          ▼
- ┌─────────────────┐
- │  5. Stopword    │  Remove: "am", "to", "the"  → ["I","go","market"]
- │     Removal     │
- └────────┬────────┘
-          ▼
- ┌─────────────────┐
- │  6. SVO → SOV  │  Subject: I  │  Object: MARKET  │  Verb: GO
- │  Reordering     │  → ["I","MARKET","GO"]
- └────────┬────────┘
-          ▼
- ┌─────────────────┐
- │  7. Gloss Lookup│  SQLite FTS5 exact + fuzzy  →  HamNoSys per gloss
- └────────┬────────┘
-          ▼
-Output Gloss: "I MARKET GO"
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#F8FAFC', 'primaryBorderColor': '#CBD5E1', 'primaryTextColor': '#102A43', 'lineColor': '#64748B', 'fontFamily': 'Inter, Segoe UI, Arial' }}}%%
+flowchart TD
+    Input["Input Sentence<br/>I am going to the market"] --> C1["1. Contraction Expansion<br/>don't → do not"]
+    C1 --> C2["2. Tokenisation<br/>I · am · going · to · the · market"]
+    C2 --> C3["3. POS Tagging<br/>PRP · VBZ · VBG · TO · DT · NN"]
+    C3 --> C4["4. Lemmatisation<br/>going → go"]
+    C4 --> C5["5. Stopword Removal<br/>I · go · market"]
+    C5 --> C6["6. SVO to SOV Reordering<br/>I · MARKET · GO"]
+    C6 --> C7["7. Gloss Lookup<br/>SQLite FTS5 exact and fuzzy match"]
+    C7 --> Output["Output Gloss<br/>I MARKET GO"]
+
+    Meta1["Tense Detection"] -. parallel annotations .-> C6
+    Meta2["Negation Detection"] -. parallel annotations .-> C6
+    Meta3["Question Classification"] -. parallel annotations .-> C6
+
+    classDef input fill:#EAF2FF,stroke:#2563EB,color:#0F172A;
+    classDef lexical fill:#E8FFF7,stroke:#0F766E,color:#0F172A;
+    classDef grammar fill:#F3E8FF,stroke:#7C3AED,color:#0F172A;
+    classDef output fill:#FFF6E5,stroke:#D97706,color:#0F172A;
+    classDef meta fill:#FCE7F3,stroke:#DB2777,color:#0F172A;
+
+    class Input input;
+    class C1,C2,C3,C4,C5 lexical;
+    class C6,C7 grammar;
+    class Output output;
+    class Meta1,Meta2,Meta3 meta;
 ```
 
 **Grammar annotations** are also computed in parallel:
+
 - **Tense detection** — `PAST` / `FUTURE` / present (default) via POS patterns
 - **Negation** — detects "not", "never", "no" → `is_negated: true`
 - **Question type** — `WH` (what/where/who/when/how) or `YES_NO` (sentence ends with `?`)
@@ -320,6 +339,7 @@ cd signvani
 ```
 
 **Backend:**
+
 ```bash
 cd nlp_backend
 pip3 install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
@@ -329,6 +349,7 @@ cd ..
 ```
 
 **Frontend:**
+
 ```bash
 cd client
 npm install
@@ -461,11 +482,13 @@ Returns component status for the active ASR engine, NLP engine, and database.
 Converts English text to Three.js-compatible keyframe animations.
 
 **Request:**
+
 ```json
 { "text": "I am going to the market" }
 ```
 
 **Response:**
+
 ```json
 {
   "original_text": "I am going to the market",
