@@ -8,6 +8,7 @@ python-multipart==0.0.6
 
 # Speech Recognition (Offline)
 vosk==0.3.45
+faster-whisper>=1.0.0        # CTranslate2 int8 — optional, set ASR_ENGINE=faster_whisper to use
 
 # Audio Processing
 PyAudio==0.2.14

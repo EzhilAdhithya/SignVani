@@ -54,6 +54,31 @@ class VoskConfig:
 
 
 @dataclass(frozen=True)
+class WhisperConfig:
+    """faster-whisper ASR engine configuration (CTranslate2 int8)"""
+
+    # Model size — tiny.en is the only variant within RPi4 RAM + latency budget
+    MODEL_SIZE: str = 'tiny.en'
+
+    # Runtime device & quantization
+    DEVICE: str = 'cpu'
+    COMPUTE_TYPE: str = 'int8'        # int8 = lowest RAM, fastest on CPU
+
+    # Local cache directory for model weights (~39 MB)
+    MODEL_DIR: str = str(PROJECT_ROOT / 'models' / 'whisper')
+
+    # Decoding: beam_size=1 is greedy (fastest); raise to 3–5 for more accuracy
+    BEAM_SIZE: int = 1
+    LANGUAGE: str = 'en'
+
+    # VAD filter suppresses silent segments before decoding (saves compute)
+    VAD_FILTER: bool = True
+
+    # Seconds of silence after last chunk before WhisperASRWorker flushes buffer
+    SILENCE_TIMEOUT: float = 0.5
+
+
+@dataclass(frozen=True)
 class NLPConfig:
     """Natural Language Processing configuration"""
 
@@ -159,12 +184,17 @@ class LoggingConfig:
 # Global configuration instances (read-only)
 audio_config = AudioConfig()
 vosk_config = VoskConfig()
+whisper_config = WhisperConfig()
 nlp_config = NLPConfig()
 database_config = DatabaseConfig()
 pipeline_config = PipelineConfig()
 sigml_config = SiGMLConfig()
 avatar_config = AvatarConfig()
 logging_config = LoggingConfig()
+
+# Active ASR engine selection — set via environment variable before starting the server
+# Valid values: "vosk" (default, lowest latency) | "faster_whisper" (better accuracy)
+ASR_ENGINE: str = os.environ.get("ASR_ENGINE", "vosk").lower()
 
 
 # Utility function to print all configurations

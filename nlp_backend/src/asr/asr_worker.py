@@ -105,3 +105,101 @@ class ASRWorker(threading.Thread):
     def stop(self):
         """Stop the worker thread."""
         self._is_running = False
+
+
+class WhisperASRWorker(threading.Thread):
+    """
+    Worker thread that accumulates audio chunks and transcribes with
+    faster-whisper (WhisperEngine).
+
+    Design rationale
+    ----------------
+    Vosk's KaldiRecognizer is a streaming decoder that accepts 20-ms chunks
+    one at a time.  Whisper is an encoder-decoder that performs best on
+    complete utterances.  This worker therefore:
+
+    1. Accumulates ``AudioChunk.data`` (float32 arrays) in a local buffer.
+    2. Flushes on *silence*: when the input queue is empty after
+       ``whisper_config.SILENCE_TIMEOUT`` seconds, the speaker has paused
+       → treat the buffer as one utterance.
+    3. Force-flushes at a 10-second cap to prevent unbounded growth.
+    4. Emits a ``TranscriptEvent`` identical to ``ASRWorker`` output, so the
+       rest of the pipeline (NLP, SiGML, API) needs no changes.
+    """
+
+    def __init__(self, input_queue: queue.Queue, output_queue: queue.Queue):
+        super().__init__(name="WhisperASRWorker")
+        self.input_queue = input_queue
+        self.output_queue = output_queue
+        self.daemon = True
+        self._is_running = False
+        self._engine: Optional[object] = None  # WhisperEngine, imported lazily
+
+    def run(self):
+        """Main accumulate-then-flush loop."""
+        logger.info("WhisperASR Worker starting...")
+
+        # Lazy import keeps the Vosk path unaffected when faster-whisper is absent
+        from src.asr.whisper_engine import WhisperEngine
+        from config.settings import whisper_config, audio_config as _audio_cfg
+
+        try:
+            self._engine = WhisperEngine()
+        except Exception as exc:
+            logger.error("Failed to initialize WhisperEngine: %s", exc)
+            return
+
+        self._is_running = True
+        buffer: list = []
+        # 10 s cap: SAMPLE_RATE samples/s × 10 s
+        max_buffer_samples: int = _audio_cfg.SAMPLE_RATE * 10
+
+        while self._is_running:
+            try:
+                chunk: AudioChunk = self.input_queue.get(
+                    timeout=whisper_config.SILENCE_TIMEOUT
+                )
+                buffer.append(chunk.data)  # float32 ndarray
+                self.input_queue.task_done()
+
+                # Force flush when 10 s of audio has accumulated
+                if sum(len(c) for c in buffer) >= max_buffer_samples:
+                    self._flush(buffer)
+                    buffer = []
+
+            except queue.Empty:
+                # Silence gap reached → end of utterance
+                if buffer:
+                    self._flush(buffer)
+                    buffer = []
+
+            except Exception as exc:
+                logger.error("Error in WhisperASR worker: %s", exc)
+
+        logger.info("WhisperASR Worker stopped.")
+
+    def _flush(self, buffer: list) -> None:
+        """Concatenate buffered chunks and send them through WhisperEngine."""
+        try:
+            audio_np = np.concatenate(buffer)
+            text, confidence = self._engine.transcribe(audio_np)
+
+            if text:
+                logger.info("Whisper Recognized: %s", text)
+                event = TranscriptEvent(
+                    text=text,
+                    confidence=confidence,
+                    is_final=True,
+                )
+                try:
+                    self.output_queue.put(event, timeout=0.5)
+                except queue.Full:
+                    logger.warning(
+                        "Transcript queue full, dropping WhisperASR event"
+                    )
+        except Exception as exc:
+            logger.error("WhisperASRWorker._flush error: %s", exc)
+
+    def stop(self):
+        """Stop the worker thread."""
+        self._is_running = False

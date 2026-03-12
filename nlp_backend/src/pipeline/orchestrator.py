@@ -16,9 +16,9 @@ import signal
 import sys
 from typing import Optional
 
-from config.settings import pipeline_config, audio_config
+from config.settings import pipeline_config, audio_config, ASR_ENGINE
 from src.audio.audio_capture import AudioCaptureSystem as AudioCapture
-from src.asr.asr_worker import ASRWorker
+from src.asr.asr_worker import ASRWorker, WhisperASRWorker
 from src.nlp.gloss_mapper import GlossMapper
 from src.sigml.generator import SiGMLGenerator
 from src.sigml.avatar_player import CWASAPlayer, CWASAPlayerError
@@ -59,8 +59,9 @@ class PipelineOrchestrator:
             noise_filter_enabled=audio_config.NOISE_REDUCTION_ENABLED
         )
 
-        logger.info("Initializing ASR Worker...")
-        self.asr_worker = ASRWorker(
+        logger.info("Initializing ASR Worker (engine=%s)...", ASR_ENGINE)
+        _worker_cls = WhisperASRWorker if ASR_ENGINE == "faster_whisper" else ASRWorker
+        self.asr_worker = _worker_cls(
             input_queue=self.audio_queue,
             output_queue=self.transcript_queue
         )

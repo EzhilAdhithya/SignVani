@@ -235,13 +235,30 @@ class VoskASR:
         return "hello world"
 
 # Global ASR instance
-asr_engine: Optional[VoskASR] = None
+asr_engine = None
 
-def get_asr_engine() -> VoskASR:
-    """Get or create ASR engine instance"""
+def get_asr_engine():
+    """
+    Return the active ASR engine instance, creating it on first call.
+
+    The engine is selected by the ``ASR_ENGINE`` environment variable
+    (read once at import time via ``config.settings.ASR_ENGINE``):
+
+    * ``"vosk"`` (default) — VoskASR, lowest latency, best for RPi4 real-time
+    * ``"faster_whisper"``  — WhisperASR, better accuracy, ~0.5–1.5 s on RPi4
+
+    Both objects expose the same ``transcribe_audio_file(bytes) -> str`` API.
+    """
     global asr_engine
     if asr_engine is None:
-        asr_engine = VoskASR()
+        from config.settings import ASR_ENGINE
+        if ASR_ENGINE == "faster_whisper":
+            from src.asr.whisper_integration import WhisperASR
+            asr_engine = WhisperASR()
+            logger.info("ASR engine: faster-whisper (WhisperASR)")
+        else:
+            asr_engine = VoskASR()
+            logger.info("ASR engine: Vosk (VoskASR)")
     return asr_engine
 
 def convert_to_wav(audio_data: bytes, sample_rate: int = 16000) -> bytes:

@@ -19,7 +19,7 @@ from urllib.request import urlretrieve
 # Add project root to path to import config
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import vosk_config, nlp_config
+from config.settings import vosk_config, nlp_config, whisper_config
 
 
 class ProgressBar:
@@ -48,8 +48,7 @@ class ProgressBar:
             print()  # New line when complete
 
 
-def download_vosk_model():
-    """Download and extract Vosk model if not already present"""
+def download_vosk_model():    """Download and extract Vosk model if not already present"""
     model_path = Path(vosk_config.MODEL_PATH)
 
     if model_path.exists() and model_path.is_dir():
@@ -84,6 +83,48 @@ def download_vosk_model():
         if zip_path.exists():
             zip_path.unlink()
         sys.exit(1)
+
+
+def download_whisper_model():
+    """
+    Download faster-whisper 'tiny.en' model (~39 MB) if not already cached.
+
+    faster-whisper stores models as CTranslate2 weight files inside
+    ``whisper_config.MODEL_DIR``.  On first instantiation the library
+    downloads automatically from HuggingFace; we just need to trigger it
+    here so that the server starts without a delay later.
+    """
+    model_dir = Path(whisper_config.MODEL_DIR)
+
+    # faster-whisper stores each model in a subdirectory named after the model size
+    expected_subdir = model_dir / "models--Systran--faster-whisper-tiny.en"
+    if expected_subdir.exists():
+        print(f"✓ Whisper model 'tiny.en' already cached at: {model_dir}")
+        return
+
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        print("  faster-whisper not installed — skipping Whisper model download.")
+        print("  Install with: pip install faster-whisper")
+        return
+
+    model_dir.mkdir(parents=True, exist_ok=True)
+    print(f"\nDownloading faster-whisper model 'tiny.en' to: {model_dir}")
+    print("  (Source: HuggingFace — Systran/faster-whisper-tiny.en, ~39 MB)")
+
+    try:
+        # Instantiating the model triggers the HuggingFace download
+        WhisperModel(
+            whisper_config.MODEL_SIZE,
+            device=whisper_config.DEVICE,
+            compute_type=whisper_config.COMPUTE_TYPE,
+            download_root=str(model_dir),
+        )
+        print("✓ Whisper model downloaded successfully")
+    except Exception as exc:
+        print(f"✗ Error downloading Whisper model: {exc}")
+        print("  The server will still work with Vosk (ASR_ENGINE=vosk).")
 
 
 def download_nltk_data():
@@ -128,6 +169,16 @@ def verify_installations():
         print(f"✗ Vosk model: FAILED")
         return False
 
+    # Check faster-whisper model (optional — failure doesn't block Vosk)
+    whisper_cache = Path(whisper_config.MODEL_DIR)
+    if whisper_cache.exists() and any(whisper_cache.iterdir()):
+        whisper_size = sum(
+            f.stat().st_size for f in whisper_cache.rglob('*') if f.is_file()
+        )
+        print(f"✓ Whisper model 'tiny.en': OK  ({whisper_size / (1024 * 1024):.1f} MB)")
+    else:
+        print("  Whisper model 'tiny.en': not downloaded (optional — use ASR_ENGINE=vosk)")
+
     # Check NLTK data
     import nltk
     nltk_data_path = Path(nlp_config.NLTK_DATA_PATH)
@@ -156,10 +207,13 @@ def main():
     # Step 1: Download Vosk model
     download_vosk_model()
 
-    # Step 2: Download NLTK data
+    # Step 2: Download faster-whisper model (optional — skipped gracefully if lib absent)
+    download_whisper_model()
+
+    # Step 3: Download NLTK data
     download_nltk_data()
 
-    # Step 3: Verify installations
+    # Step 4: Verify installations
     if verify_installations():
         print("\n" + "=" * 60)
         print("✓ All models downloaded and verified successfully!")

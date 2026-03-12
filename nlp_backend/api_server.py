@@ -232,6 +232,8 @@ async def speech_to_sign(audio: UploadFile = File(...)):
             f"| question_type={gloss_phrase.question_type}")
         return response
 
+    except HTTPException:
+        raise  # propagate 400/404 etc. without wrapping in 500
     except Exception as e:
         logger.error(f"Error processing audio: {e}")
         raise HTTPException(
